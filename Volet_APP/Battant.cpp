@@ -1,141 +1,175 @@
 #include "Battant.h"
 
-void Battant::calibrate() {
-    Serial.println("debut calibration");
+bool Battant::init_calibration() {
+    if (this->setBattantState(-2)) {
+        this->stop();
+        this->calibration_var.state = 10;
+        return true;
+    }
+    return false;
 
-    is_calibrate = false;
-
-    //fermeture du volet jusqu'a butté interrieur
-
-    this->setDir(0);
-    this->setSpeed(255);
-    this->updatePontH();
-    while (!this->isInStopperClose());
-    this->setSpeed(0);
-    this->updatePontH();
-
-
-    // ouverture et mesure du temps 
-
-    bool retry = false;
-
-    do {
-        if (retry) {
-            Serial.println("Erreur lors de la calibration(temps incohérant), lancement de la recalibration de la phase d'ouverture");
-            Serial.println("remise en pos initiale (fermé)");
-            this->setDir(0);
-            this->setSpeed(255);
-            this->updatePontH();
-            while (!this->isInStopperClose());
-            this->setSpeed(0);
-            this->updatePontH();
-        }
-    this->setDir(1);
-    this->setSpeed(255);
-    this->updatePontH();
-    mesure_temps_ouverture = millis();
-    while (!this->isInStopperOpen());
-    this->setSpeed(0);
-    this->updatePontH();
-    this->tempsOuverture = millis() - mesure_temps_ouverture;//On enregistre le temps d'ouverture
-    mesure_temps_ouverture = 0;
-    Serial.print("Ouverture terminée, temps: ");
-    Serial.println(this->tempsOuverture);
-
-
-    retry = true;
-
-
-    }while (this->tempsOuverture < MIN_TIME_OPEN_CLOSE_IN_MS);
-
-
-
-    // fermeture et mesure du temps 
-    retry = false;
-
-    do {
-        if (retry) {
-            Serial.println("Erreur lors de la calibration(temps incohérant), lancement de la recalibration de la phase de fermeture");
-            Serial.println("remise en pos initiale (ouvert)");
-            this->setDir(1);
-            this->setSpeed(255);
-            this->updatePontH();
-            while (!this->isInStopperOpen());
-            this->setSpeed(0);
-            this->updatePontH();
-            Serial.println("OK");
-
-        }
-        this->setDir(0);
+}
+bool Battant::calibration_Ready()
+{
+    return this->calibration_var.state == 12;
+}
+void Battant::calibrateNextStep() {
+    if (this->calibration_Ready()) {
+        this->calibration_var.state = 20;
+    }
+}
+void Battant::calibrate_loop()
+{
+    switch (this->calibration_var.state) {
+    case -1:
+        
+        break;
+    case 10:
+        Serial.println("Debut calibration");
+        this->calibration_var.clock1 = millis();
+        this->calibration_var.mem_tempsFermerture = this->get_time_close();
+        this->calibration_var.mem_tempsOuverture = this->get_time_open();
+        this->setDir(1);//On ouvre suffisament le battant pour être sûre qu'il ne soit pas dans la zone de chevauchement (idem sur l'autre battant) 
         this->setSpeed(255);
         this->updatePontH();
-        mesure_temps_fermeture = millis();
-        while (!this->isInStopperClose());
-        this->setSpeed(0);
+        this->calibration_var.state = 11;
+
+        break;
+    case 11:
+        //On ouvre le volet pendant 5 secondes ou si butée on s'arrete à la butée
+        if (this->isInStopperOpen() || millis() - this->calibration_var.clock1 > 5000) {
+            this->setSpeed(0);
+            this->updatePontH();
+            this->calibration_var.state = 12;
+        }
+        break;
+    case 12:
+
+        break;
+    case 20:
+        this->setDir(0);//On met le battant en postion fermé 
+        this->setSpeed(255);
         this->updatePontH();
-        this->tempsFermerture = millis() - mesure_temps_fermeture;//On enregistre le temps de fermeture 
-        mesure_temps_fermeture = 0;
-        retry = true;
-        Serial.print("Fermeture terminée, temps: ");
-        Serial.println(this->tempsFermerture);
-    } while (this->tempsFermerture < MIN_TIME_OPEN_CLOSE_IN_MS);
+        this->calibration_var.clock1 = millis();
+        this->calibration_var.state = 21;
 
-    this->currentPos = 0;
-    Serial.println("fin calibration");
-}
+        break;
+    case 21:
+        if (millis() - this->calibration_var.clock1 > 30000) {// si le volet met un temps anormale a atteindre la position fermé, on le met en erreur
+            this->calibration_var.state = -1; 
+        }
+        if (this->isInStopperClose()) {//Une fois le battant en butté on l'arrete puis on passe à l'étape suivante.
+            this->setSpeed(0);
+            this->updatePontH();
+            this->calibration_var.state = 22;
+        }
+        break;
 
-void Battant::prepareCalibrate()
-{
-    Serial.println("debut prep pour calibration");
-    this->setDir(1);
-    this->setSpeed(255);
-    this->updatePontH();
-    Serial.println("ouverture legere");
+    case 22:
+        this->setDir(1);//On lance l'ouverture et on declanche le chrono
+        this->setSpeed(255);
+        this->updatePontH();
+        this->calibration_var.clock1 = millis();
+        this->calibration_var.state = 23;
 
-   
+        break;
 
-}
+    case 23:
+       
+        if (this->isInStopperOpen()) {
+            this->setSpeed(0);
+            this->updatePontH();
+            this->set_time_open(millis() - this->calibration_var.clock1);//On enregistre le temps d'ouverture
+            if (get_time_open() < MIN_TIME_OPEN_CLOSE_IN_MS) {
+                this->calibration_var.state = 24;//Si le temps est annormalement rapide, on recommence
+            }
+            else {
+                this->calibration_var.state = 30;//Sinon, on passe a la suite
+            }
 
-void Battant::StopPrepareCalibrate()
-{
-    this->setDir(1);
-    this->setSpeed(0);
-    this->updatePontH();
+        }else if (millis() - this->calibration_var.clock1 > 30000) {// si le battant met un temps anormalement long à s'ouvrire , on le met en erreur
+            this->calibration_var.state = -1;
+        }
+        break;
+    case 24:
+        this->calibration_var.state = 20;       
+        break;
 
-}
+    case 30:
+        this->setDir(1);//On met le battant en postion fermé 
+        this->setSpeed(255);
+        this->updatePontH();
+        this->calibration_var.clock1 = millis();
+        this->calibration_var.state = 31;
 
-void Battant::LoopPrepareCalibrate()
-{
-    if (this->isInStopperOpen()) {
-        StopPrepareCalibrate();
+        break;
+    case 31:
+        if (millis() - this->calibration_var.clock1 > 30000) {// si le volet met un temps anormale a atteindre la position fermé, on le met en erreur
+            this->calibration_var.state = -1;
+        }
+        if (this->isInStopperOpen()) {//Une fois le battant en butté on l'arrete puis on passe à l'étape suivante.
+            this->setSpeed(0);
+            this->updatePontH();
+            this->calibration_var.state = 32;
+        }
+        break;
+
+    case 32:
+        this->setDir(0);//On lance l'ouverture et on declanche le chrono
+        this->setSpeed(255);
+        this->updatePontH();
+        this->calibration_var.clock1 = millis();
+        this->calibration_var.state = 33;
+
+        break;
+
+    case 33:
+
+        if (this->isInStopperClose()) {
+            this->setSpeed(0);
+            this->updatePontH();
+            this->set_time_close(millis() - this->calibration_var.clock1);//On enregistre le temps d'ouverture
+            if (get_time_close() < MIN_TIME_OPEN_CLOSE_IN_MS) {
+                this->calibration_var.state = 34;//Si le temps est annormalement rapide, on recommence
+            }
+            else {
+                this->calibration_var.state = 99;//Sinon, on passe a la suite
+            }
+
+        }
+        else if (millis() - this->calibration_var.clock1 > 30000) {// si le battant met un temps anormalement long à s'ouvrire , on le met en erreur
+            this->calibration_var.state = -1;
+        }
+        break;
+    case 34:
+        this->calibration_var.state = 30;
+        break;
+
+    case 99:
+        this->setDir(1);//On lance l'ouverture et on declanche le chrono
+        this->setSpeed(255);
+        this->updatePontH();
+        this->calibration_var.clock1 = millis();
+        this->calibration_var.state = 30;
+        break;
+    case 100:
+        if (millis() - this->calibration_var.clock1 > 5000) {
+            this->setSpeed(0);
+            this->updatePontH();
+            this->calibration_var.state = 0;
+            Serial.println("fin calibration");
+        }
+        break;
+    default:
+        this->calibration_var.state = -1;
+        break;
+
     }
 }
 
-void Battant::set_time_close(long time_)
+void Battant::setTarget(float pos)
 {
-    this->tempsFermerture = time_;
-}
-
-void Battant::set_time_open(long time_)
-{
-    this->tempsOuverture = time_;
-
-}
-
-unsigned long Battant::get_time_close()
-{
-    return this->tempsFermerture;
-}
-
-unsigned long Battant::get_time_open()
-{
-    return this->tempsFermerture;
-  
-}
-
-void Battant::setPosition(float pos)
-{
-    if(pos <= 100) targetPos = pos; // si la position est superieur a 100 on ne modifie la position voulue
+    if(pos <= 100 && pos >= 100) targetPos = pos; // si la position est superieur a 100 on ne modifie la position voulue
           
 }
 
@@ -145,6 +179,26 @@ void Battant::setMaxCouple(int max_)
 }
 
 void Battant::loop() {
+    switch (battant_state) {
+        case -3:
+
+            break;
+        case -2:
+            this->calibrate_loop();
+            break;
+        case -1:
+
+            break;
+        case 0:
+
+            break;
+        case 1:
+
+            break;
+        default:
+            break;
+
+    }
 
     this->updateSpeedAndDirForTarget();
     this->updatePontH();
@@ -221,44 +275,7 @@ void Battant::updateSpeedAndDirForTarget() {
         }
     }
 
-    if (trueTargetPos == 0) {
-        if (getCurrentPosition() == 100) {
-            mesure_temps_fermeture = millis();
-        }
-        if (!this->isInStopperClose()) {
-            this->setDir(0);
-            this->setSpeed(255);
-
-        }
-        else {
-            if (mesure_temps_fermeture != 0) {
-                this->tempsFermerture = millis() - this->mesure_temps_fermeture;
-                this->mesure_temps_fermeture = 0;
-            }
-            setPosition(0);
-            this->setSpeed(0);
-
-        }
-    }
-    else if (trueTargetPos == 100 ) {
-        if (getCurrentPosition() == 0) {
-            this->mesure_temps_ouverture = millis();
-        }
-        if (!this->isInStopperOpen()) {
-            this->setDir(1);
-            this->setSpeed(255);
-        }
-        else {
-            if (mesure_temps_ouverture != 0) {
-                this->tempsOuverture = millis() - this->mesure_temps_ouverture;
-                this->mesure_temps_ouverture = 0;
-            }
-            setPosition(100);
-            this->setSpeed(0);
-
-        }
-
-    }else if (trueTargetPos > this->getCurrentPosition()+1) {
+   if (trueTargetPos > this->getCurrentPosition()+1) {
         this->setDir(1);
         this->setSpeed(255);
     }
@@ -268,6 +285,17 @@ void Battant::updateSpeedAndDirForTarget() {
     }
     else {
         this->setSpeed(0);
+    }
+}
+
+void Battant::cancel_calibration()
+{
+    if (this->calibration_var.state != 0) { // si le battant est en cours de calibration on annule sinon rien
+        this->stop();
+        this->calibration_var.state = 0;
+        this->set_time_open(this->calibration_var.mem_tempsOuverture);
+        this->set_time_close(this->calibration_var.mem_tempsFermerture);
+        this->setBattantState(-3);
     }
 }
 
@@ -281,6 +309,11 @@ void Battant::updatePontH()
         inStopperClose = false;
         analogWrite(pinOuverture, speed);
     }
+}
+
+bool Battant::setBattantState(char state)
+{
+    this->battant_state = state;
 }
 
 void Battant::debug()
@@ -302,6 +335,12 @@ void Battant::setSpeed(int speed) {
 
 void Battant::setDir(bool dir) {
     this->dir = dir;
+}
+
+void Battant::stop()
+{
+    this->setSpeed(0);
+    this->updatePontH();
 }
 
 bool Battant::isInStopperClose()
@@ -380,8 +419,7 @@ void Battant::config(configBattant battConf)
     this->battantType = battConf.battantType;
     this->pinOuverture = battConf.pont_H_pinOuverture;
     this->pinFermeture = battConf.pont_H_pinFermeture;
-    this->pinFinDeCourseFerme = battConf.pinFinDeCourseFerme;
-    pinMode(pinFinDeCourseFerme, INPUT);
+
 
     this->autreBattant = nullptr;
     speed = 0;
@@ -393,9 +431,30 @@ void Battant::config(configBattant battConf)
     this->inStopperClose = 0;
     this->lastMesurePosition = 0;
     this->setMaxCouple(4000);
-    max_time_bloque = 50;
     cst_K = 110.247;
 
     currentPos = 0;
+
+}
+
+
+
+void Battant::set_time_close(long time_)
+{
+    this->tempsFermerture = time_;
+}
+void Battant::set_time_open(long time_)
+{
+    this->tempsOuverture = time_;
+
+}
+
+unsigned long Battant::get_time_close()
+{
+    return this->tempsFermerture;
+}
+unsigned long Battant::get_time_open()
+{
+    return this->tempsFermerture;
 
 }

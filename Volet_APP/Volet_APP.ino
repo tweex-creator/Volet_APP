@@ -34,18 +34,16 @@ void loop() {
 	configBattant battant_droit_conf;
 	configBattant battant_gauche_conf;
 	battant_droit_conf.battantType = 1;
-	battant_droit_conf.pinFinDeCourseFerme = 26;
 	battant_droit_conf.pont_H_pinFermeture = 2;
 	battant_droit_conf.pont_H_pinOuverture = 4;
 
 	battant_gauche_conf.battantType = 0;
-	battant_gauche_conf.pinFinDeCourseFerme = 27;
 	battant_gauche_conf.pont_H_pinFermeture = 32;
 	battant_gauche_conf.pont_H_pinOuverture = 33;
 
 	volet.config(battant_gauche_conf, battant_droit_conf);
 
-	//volet.calibrate();
+	//volet.init_calibration();
 	volet.calibrate_manual(15815,15755,15492,15554);
 
 	//volet.setPosBD(0.0);

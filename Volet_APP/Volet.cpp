@@ -28,8 +28,8 @@ void Volet::calibrate()
 	battantDroit.StopPrepareCalibrate();
 	Serial.println("fin prep calibration");
 
-	battantDroit.calibrate();
-	battantGauche.calibrate();
+	battantDroit.init_calibration();
+	battantGauche.init_calibration();
 	File calibration_file = LittleFS.open(F("/calibration_data.txt"), "w");
 	unsigned long time_close_bd;
 	unsigned long time_open_bd;
@@ -97,12 +97,12 @@ void Volet::calibrate_manual(long time_close_bd, long time_open_bd, long time_cl
 
 void Volet::setPosBG(float pos)
 {
-	battantGauche.setPosition(pos);
+	battantGauche.setTarget(pos);
 }
 
 void Volet::setPosBD(float pos)
 {
-	battantDroit.setPosition(pos);
+	battantDroit.setTarget(pos);
 }
 
 void Volet::loop()
