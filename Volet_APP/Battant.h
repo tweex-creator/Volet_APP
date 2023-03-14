@@ -14,38 +14,54 @@ struct configBattant {
 class Battant
 {
 public:
-	Battant(uint8_t addr_i2c_capteur_courant);
-	void config(configBattant batConf);
-	void setAutreBattant(Battant* autreBattant);
 
-	void loop();// a appelé le plus régulièrement possible pour assurer le bon focntionnement du voolet(minimum 10 fois par seconde)
-
-
+	//Calibration
 	bool init_calibration();//demarre la séquence de calibration du battant(doit être appelé en quasi simultanné sur les deux battants), retourne faux si le battant ne peux pas effectuer la calibration
 	bool calibration_Ready(); // True si le battant et pret a demarrer son calibrage individuelle (une fois appelé attendre la fin avant d'appeler sur le deuxème battant)
 	void calibrateNextStep(); //Une fois le battant en postion legerment ouverte, il faudrat appelé la fonction next step pour pouvoir demarrer la calibration
+	bool calibration_inProgress();  // Renvoie vraie tant que l'etat de la calibration n'est pas à 0 soit pas en cours
+	void cancel_calibration(); //Arrète la procédure de calibration et réstaure les dernières valeur de calibration connues, le battant vas passer en erreur d'origine (il faudra faire une prise d'origine pour pouvoir s'en servir a nouveau)
+	
+	//Prise d'origine	
+	bool init_priseOrigine();//demarre la séquence de calibration du battant(doit être appelé en quasi simultanné sur les deux battants), retourne faux si le battant ne peux pas effectuer la calibration
+	bool priseOrigine_Ready(); // True si le battant et pret a demarrer son calibrage individuelle (une fois appelé attendre la fin avant d'appeler sur le deuxème battant)
+	void priseOrigineNextStep(); //Une fois le battant en postion legerment ouverte, il faudrat appelé la fonction next step pour pouvoir demarrer la calibration
+	bool priseOrigine_inProgress();  // Renvoie vraie tant que l'etat de la calibration n'est pas à 0 soit pas en cours
 
-	void setTarget(float pos);  //definie la consigne de position du volet sur la valeur pos (en %)
+	//loop
+	void loop();// a appelé le plus régulièrement possible pour assurer le bon focntionnement du voolet(minimum 10 fois par seconde)
+
+	//configuration
+	Battant(uint8_t addr_i2c_capteur_courant);
+	void config(configBattant batConf);
+	void setAutreBattant(Battant* autreBattant);
+	void set_time_close(long time_);
+	void set_time_open(long time_);
+	unsigned long get_time_close();
+	unsigned long get_time_open();
+	void setMaxCouple(int max);
+
+	char config_done;//0 si pas faite, 1 si ready, -1 si l'adresse de l'autre battant communiqué, 2 si la config est chargé
+
+
+	//Contrôle Public
+	void setTargetPosition(float pos);  //definie la consigne de position du volet sur la valeur pos (en %)
 	float getTargetPosition();  // renvoie la position de destination du battant
 	float getRealTargetPosition();  // renvoie la position de destination consideré par le battant (peut differer de getTargetPosition si les deux battants sont sur une zone de chevauchement) 
 
 	float getCurrentPosition(); // renvoie la postition actuelle du battant (-1 si inconnue)
 
+	char getState();
 
-	void set_time_close(long time_);
-	void set_time_open(long time_);
-	unsigned long get_time_close();
-	unsigned long get_time_open();
+	
 
 	
 	
 	
-	float getCurrentCouple();
-	int getAutreBatantPos();
+	
+	
 	
 
-	//Configuration
-	void setMaxCouple(int max);
 
 
 	
@@ -102,10 +118,7 @@ private:
 	//Etat autre battant
 	Battant* autreBattant;
 
-	//Contrôle haut niveau
-	void updateSpeedAndDirForTarget(); //Mets à jours les consignes de vitesse afin d'atteindre la position voulue pour le battant
-	void calibrate_loop(); //Gère la chaine d'action lié à la calibration
-	void cancel_calibration(); //Arrète la procédure de calibration et réstaure les dernières valeur de calibration connues, le battant vas passer en erreur d'origine (il faudra faire une prise d'origine pour pouvoir s'en servir a nouveau)
+	
 	
 	///Variable de calibrate_loop (pour fonctionnement assync)
 	struct calibration_var_set {
@@ -136,19 +149,51 @@ private:
 	};
 	calibration_var_set calibration_var;
 
+	///Variable pour la prise d'origine(pour fonctionnement assync)
+	struct origine_var_set {
+		char state;
+		/* origine_var_set.state
+		indique l'avancement actuel de la prise d'origine:
+			0  : Pas de prise d'origine en cours
+			10 : lancement de la prise d'origine
+			11 : En preparation pour la prise d'origine
+			12 : En attente pour demarrage de la prise d'origine
+			20 : Demarrage de la mise en position fermé
+			21 : mise en position fermé
+		*/
+		unsigned long clock1;    // Permet de faire des mes mesures de temps dans la loop
 
-	//Contrôle bas niveau
+	};
+	origine_var_set origine_var;
+
+	//config
+	bool setBattantState(char state);    // Permet de mettre à jour l'état actuelle du battant (variable char battant_state)
+
+	
+	//loops
+	void calibrate_loop(); //Gère la chaine d'action lié à la calibration
+	void priseOrigine_loop();
+
+
+	//Contrôle Privé
 	void setSpeed(int speed);  //Modifie la consigne de vitesse du battant, serat appliqué a la prochaine mise à jour du pont en H (void updatePontH())
 	void setDir(bool dir);     //Modifie la direction du battant (0: fermeture, 1: ouverture) , serat appliqué a la prochaine mise à jour du pont en H (void updatePontH())
-	void stop();			   //Arrete immédiattement le mouvement du battant. !! Rien d'empèche le programme de relancer le mouvement immédiatement après
+	void updatePontH();		   // Mets à jour le partie Hardware (pont en H) en fonction des consignes de vitesse et direction defini
+	void stop();		//Arrete immédiattement le mouvement du battant. !! Rien d'empèche le programme de relancer le mouvement immédiatement après
+
+	
+	//Detection de butées
 	bool isInStopperClose();   //Retourne True si le volet est en buté ouverte, False Sinon.
 	bool isInStopperOpen();	   //Retourne True si le volet est en buté fermé, False Sinon
-	void updatePontH();		   // Mets à jour le partie Hardware (pont en H) en fonction des consignes de vitesse et direction defini
-	bool setBattantState(char state);    // Permet de mettre à jour l'état actuelle du battant (variable char battant_state)
 	float getIntensite();// Permet de recuperer l'intensité du courant absorber par le moteur
+	float getCurrentCouple();
+
+	//Contrôle autonome de la position
+	//Contrôle haut niveau
+	void updateSpeedAndDirForTarget(); //Mets à jours les consignes de vitesse afin d'atteindre la position voulue pour le battant
 	
+	//autre
 	void debug();//Permet d'envoyer les données de debugage sur le port Serie
-
-
+	int getAutreBatantPos();
 };
 

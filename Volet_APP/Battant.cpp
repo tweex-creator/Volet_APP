@@ -1,5 +1,7 @@
 #include "Battant.h"
 
+
+//Calibration
 bool Battant::init_calibration() {
     if (this->setBattantState(-2)) {
         this->stop();
@@ -18,6 +20,21 @@ void Battant::calibrateNextStep() {
         this->calibration_var.state = 20;
     }
 }
+bool Battant::calibration_inProgress()
+{
+    return this->calibration_var.state == 0;
+}
+void Battant::cancel_calibration()
+{
+    if (this->calibration_var.state != 0) { // si le battant est en cours de calibration on annule sinon rien
+        this->stop();
+        this->calibration_var.state = 0;
+        this->set_time_open(this->calibration_var.mem_tempsOuverture);
+        this->set_time_close(this->calibration_var.mem_tempsFermerture);
+        this->setBattantState(-3);
+    }
+}
+
 void Battant::calibrate_loop()
 {
     switch (this->calibration_var.state) {
@@ -26,12 +43,12 @@ void Battant::calibrate_loop()
         break;
     case 10:
         Serial.println("Debut calibration");
-        this->calibration_var.clock1 = millis();
         this->calibration_var.mem_tempsFermerture = this->get_time_close();
         this->calibration_var.mem_tempsOuverture = this->get_time_open();
         this->setDir(1);//On ouvre suffisament le battant pour être sûre qu'il ne soit pas dans la zone de chevauchement (idem sur l'autre battant) 
         this->setSpeed(255);
         this->updatePontH();
+        this->calibration_var.clock1 = millis();
         this->calibration_var.state = 11;
 
         break;
@@ -157,6 +174,7 @@ void Battant::calibrate_loop()
             this->setSpeed(0);
             this->updatePontH();
             this->calibration_var.state = 0;
+            this->battant_state = -1;
             Serial.println("fin calibration");
         }
         break;
@@ -167,17 +185,83 @@ void Battant::calibrate_loop()
     }
 }
 
-void Battant::setTarget(float pos)
+
+
+//Prise d'origine
+bool Battant::init_priseOrigine() {
+    if (this->setBattantState(-1)) {
+        this->stop();
+        this->origine_var.state = 10;
+        return true;
+    }
+    return false;
+
+}
+bool Battant::priseOrigine_Ready()
 {
-    if(pos <= 100 && pos >= 100) targetPos = pos; // si la position est superieur a 100 on ne modifie la position voulue
-          
+    return this->origine_var.state == 12;
+}
+void Battant::priseOrigineNextStep() {
+    if (this->priseOrigine_Ready()) {
+        this->origine_var.state = 20;
+    }
+}
+bool Battant::priseOrigine_inProgress()
+{
+    return this->origine_var.state == 0;
 }
 
-void Battant::setMaxCouple(int max_)
+void Battant::priseOrigine_loop()
 {
-    this->maxCouple = max_;
+    switch (this->origine_var.state) {
+    case 0:
+
+        break;
+    case 10:
+        Serial.println("Debut calibration");
+        this->setTargetPosition(0);
+
+        this->setDir(1);//On ouvre suffisament le battant pour être sûre qu'il ne soit pas dans la zone de chevauchement (idem sur l'autre battant) 
+        this->setSpeed(255);
+        this->updatePontH();
+        this->origine_var.clock1 = millis();
+        this->origine_var.state = 11;
+        break;
+    case 11:
+        //On ouvre le volet pendant 5 secondes ou si butée on s'arrete à la butée
+        if (this->isInStopperOpen() || millis() - this->origine_var.clock1 > 5000) {
+            this->setSpeed(0);
+            this->updatePontH();
+            this->origine_var.state = 12;
+        }
+        break;
+    case 12:
+
+        break;
+    case 20:
+        //On ferme le battant
+        this->setTargetPosition(0);
+        this->setSpeed(255);
+        this->updatePontH();
+        this->origine_var.state = 21;
+        break;
+    case 21:
+        //une fois le battant en butée, on considère la position actuelle comme 0
+        if (this->isInStopperClose()) {
+            this->setSpeed(0);
+            this->updatePontH();
+            this->origine_var.state = 0;
+            this->currentPos = 0;
+            this->setBattantState(2);
+        }
+        break;
+    default:
+        break;
+
+    }
 }
 
+//loop
 void Battant::loop() {
     switch (battant_state) {
         case -3:
@@ -187,42 +271,121 @@ void Battant::loop() {
             this->calibrate_loop();
             break;
         case -1:
-
+            this->priseOrigine_loop();
             break;
         case 0:
-
+            if (config_done == 1) this->setBattantState(1);
             break;
         case 1:
-
+            this->setBattantState(-3);
             break;
         default:
+            this->updateSpeedAndDirForTarget();
+            this->updatePontH();
             break;
 
     }
 
-    this->updateSpeedAndDirForTarget();
-    this->updatePontH();
+   
     debug();
 }
 
+
+//configuration
+Battant::Battant(uint8_t addr_i2c)
+    : ampVolet(addr_i2c) {
+    //while (ampVolet.begin(&Wire) != true) {
+    Serial.print("ampVolet begin faild ");
+    Serial.println(addr_i2c);
+    delay(2000);
+    // }
+    ampVolet.setCalibration_32V_2A();
+    battant_state = 0;
+    config_done = 0;
+}
+
+void Battant::config(configBattant battConf)
+{
+    this->battantType = battConf.battantType;
+    this->pinOuverture = battConf.pont_H_pinOuverture;
+    this->pinFermeture = battConf.pont_H_pinFermeture;
+
+
+    this->autreBattant = nullptr;
+    speed = 0;
+    dir = 0;
+
+    this->firstTimeOverTorqueOpen = 0;
+    this->maxTimeOverTorque = 100;
+    this->inStopperOpen = 0;
+    this->inStopperClose = 0;
+    this->lastMesurePosition = 0;
+    this->setMaxCouple(4000);
+    cst_K = 110.247;
+
+    currentPos = 0;
+
+    if (config_done < 2 && config_done != 1) {
+        config_done = config_done + 2;
+    }
+}
+void Battant::setAutreBattant(Battant* autreBattant_)
+{
+    this->autreBattant = autreBattant_;
+    if (config_done > -1 && config_done != 1) {
+        config_done = config_done - 1;
+
+    }
+}
+void Battant::set_time_close(long time_)
+{
+    this->tempsFermerture = time_;
+}
+void Battant::set_time_open(long time_)
+{
+    this->tempsOuverture = time_;
+
+}
+unsigned long Battant::get_time_close()
+{
+    return this->tempsFermerture;
+}
+unsigned long Battant::get_time_open()
+{
+    return this->tempsFermerture;
+
+}
+
+void Battant::setMaxCouple(int max_)
+{
+    this->maxCouple = max_;
+}
+
+//Contrôle Public
+void Battant::setTargetPosition(float pos)
+{
+    if (pos <= 100 && pos >= 100) targetPos = pos; // si la position est superieur a 100 on ne modifie la position voulue
+
+}
 float Battant::getTargetPosition()
 {
     return this->targetPos;
 }
+float Battant::getRealTargetPosition()
+{
+    return 0.0f;
+}
 
-float Battant::getCurrentPosition(){
+float Battant::getCurrentPosition() {
     float deplacement = 0;
 
     if (speed != 0) {
 
-        if(this->lastMesurePosition == 0){
+        if (this->lastMesurePosition == 0) {
             lastMesurePosition = millis();
             return this->currentPos;
         }
-        Serial.print("position ");
-        Serial.print(battantType);
-        Serial.print(" : ");
-
+    
         unsigned long tempsParcours = millis() - lastMesurePosition;
         lastMesurePosition = millis();
 
@@ -239,13 +402,97 @@ float Battant::getCurrentPosition(){
         lastMesurePosition = 0;
     }
     currentPos = currentPos + deplacement;
- 
+
 
 
 
     return this->currentPos;
 }
 
+char Battant::getState()
+{
+    return this->battant_state;
+}
+
+//Contrôle Privé
+void Battant::setSpeed(int speed) {
+    this->speed = speed;
+}
+void Battant::setDir(bool dir) {
+    this->dir = dir;
+}
+void Battant::stop()
+{
+    this->setSpeed(0);
+    this->updatePontH();
+}
+bool Battant::setBattantState(char state)
+{
+    this->battant_state = state;
+}
+void Battant::updatePontH()
+{
+    if (dir == 0) {
+        inStopperOpen = false;
+        analogWrite(pinFermeture, speed);
+    }
+    else {
+        inStopperClose = false;
+        analogWrite(pinOuverture, speed);
+    }
+}
+
+
+//Detection de butées
+bool Battant::isInStopperClose()
+{
+    if (-1 * getCurrentCouple() > maxCouple) {
+        if (firstTimeOverTorqueClose == 0) {
+            firstTimeOverTorqueClose = millis();
+
+        }
+        if (millis() - this->firstTimeOverTorqueClose > this->maxTimeOverTorque) {
+            inStopperClose = true;
+            currentPos = 0;
+        }
+    }
+    else {
+
+        firstTimeOverTorqueClose = 0;
+    }
+
+    return inStopperClose;
+}
+bool Battant::isInStopperOpen()
+{
+    if (getCurrentCouple() > maxCouple) {
+        if (firstTimeOverTorqueOpen == 0) {
+            firstTimeOverTorqueOpen = millis();
+        }
+        if (millis() - this->firstTimeOverTorqueOpen > this->maxTimeOverTorque) {
+            inStopperOpen = true;
+            currentPos = 100;
+
+        }
+
+
+    }
+    else {
+        firstTimeOverTorqueOpen = 0;
+    }
+
+    return inStopperOpen;
+}
+float Battant::getIntensite()
+{
+    return ampVolet.getCurrent_mA();
+}
+float Battant::getCurrentCouple()
+{
+    return cst_K * this->getIntensite();
+}
+
+//Contrôle autonome de la position
 void Battant::updateSpeedAndDirForTarget() {
     float trueTargetPos;
     if (battantType == 0) {//premier a ce fermer  securité antichevauchement
@@ -288,34 +535,8 @@ void Battant::updateSpeedAndDirForTarget() {
     }
 }
 
-void Battant::cancel_calibration()
-{
-    if (this->calibration_var.state != 0) { // si le battant est en cours de calibration on annule sinon rien
-        this->stop();
-        this->calibration_var.state = 0;
-        this->set_time_open(this->calibration_var.mem_tempsOuverture);
-        this->set_time_close(this->calibration_var.mem_tempsFermerture);
-        this->setBattantState(-3);
-    }
-}
 
-void Battant::updatePontH()
-{
-    if (dir == 0) {
-        inStopperOpen = false;
-        analogWrite(pinFermeture, speed);
-    }
-    else {
-        inStopperClose = false;
-        analogWrite(pinOuverture, speed);
-    }
-}
-
-bool Battant::setBattantState(char state)
-{
-    this->battant_state = state;
-}
-
+//autre
 void Battant::debug()
 {
     if (this->battantType == 0) {
@@ -328,133 +549,18 @@ void Battant::debug()
 
     }
 }
-
-void Battant::setSpeed(int speed) {
-    this->speed = speed;
-}
-
-void Battant::setDir(bool dir) {
-    this->dir = dir;
-}
-
-void Battant::stop()
-{
-    this->setSpeed(0);
-    this->updatePontH();
-}
-
-bool Battant::isInStopperClose()
-{
-    if (-1*getCurrentCouple() > maxCouple) {
-        if (firstTimeOverTorqueClose == 0) {
-            firstTimeOverTorqueClose = millis();
-           
-        }
-        if (millis() - this->firstTimeOverTorqueClose > this->maxTimeOverTorque) {
-            inStopperClose = true;
-            currentPos = 0;
-        }
-    }
-    else {
-
-        firstTimeOverTorqueClose = 0;
-    }
-
-    return inStopperClose;
-}
-
-bool Battant::isInStopperOpen()
-{
-    if (getCurrentCouple() > maxCouple) {
-        if (firstTimeOverTorqueOpen == 0){
-            firstTimeOverTorqueOpen = millis();
-        }
-        if (millis() - this->firstTimeOverTorqueOpen > this->maxTimeOverTorque) {
-            inStopperOpen = true;
-            currentPos = 100;
-
-        }
-
-
-    }
-    else {
-        firstTimeOverTorqueOpen = 0;
-    }
-
-    return inStopperOpen;
-}
-
-float Battant::getCurrentCouple()
-{
-    return cst_K * this->getIntensite();
-}
-
 int Battant::getAutreBatantPos()
 {
     return autreBattant->getCurrentPosition();
 }
 
-void Battant::setAutreBattant(Battant* autreBattant_)
-{
-    this->autreBattant = autreBattant_;
-}
-
-float Battant::getIntensite()
-{
-    return ampVolet.getCurrent_mA();
-}
-
-Battant::Battant(uint8_t addr_i2c)
-    : ampVolet(addr_i2c) {
-    //while (ampVolet.begin(&Wire) != true) {
-        Serial.print("ampVolet begin faild ");
-        Serial.println(addr_i2c);
-        delay(2000);
-   // }
-    ampVolet.setCalibration_32V_2A();
-}
-
-void Battant::config(configBattant battConf)
-{
-    this->battantType = battConf.battantType;
-    this->pinOuverture = battConf.pont_H_pinOuverture;
-    this->pinFermeture = battConf.pont_H_pinFermeture;
-
-
-    this->autreBattant = nullptr;
-    speed = 0;
-    dir = 0;
-
-    this->firstTimeOverTorqueOpen = 0;
-    this->maxTimeOverTorque = 100;
-    this->inStopperOpen = 0;
-    this->inStopperClose = 0;
-    this->lastMesurePosition = 0;
-    this->setMaxCouple(4000);
-    cst_K = 110.247;
-
-    currentPos = 0;
-
-}
 
 
 
-void Battant::set_time_close(long time_)
-{
-    this->tempsFermerture = time_;
-}
-void Battant::set_time_open(long time_)
-{
-    this->tempsOuverture = time_;
 
-}
 
-unsigned long Battant::get_time_close()
-{
-    return this->tempsFermerture;
-}
-unsigned long Battant::get_time_open()
-{
-    return this->tempsFermerture;
 
-}
+
+
+
+

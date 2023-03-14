@@ -1,5 +1,6 @@
 #include "Volet.h"
 
+//Configuration
 Volet::Volet(uint8_t addr_i2c_droit, uint8_t addr_i2c_gauche):battantDroit(addr_i2c_droit), battantGauche(addr_i2c_gauche)
 {
 	
@@ -11,49 +12,21 @@ void Volet::config(configBattant bg, configBattant bd)
 	battantGauche.config(bg);
 	battantDroit.setAutreBattant(&battantGauche);
 	battantGauche.setAutreBattant(&battantDroit);
+	config_done = 1;
 }
 
+bool Volet::setVoletState(char state)
+{
+	this->volet_state = state;
+	return true;
+}
+
+//Calibration
 void Volet::calibrate()
 {
-	battantGauche.prepareCalibrate();
-	battantDroit.prepareCalibrate();
-	unsigned long time_prep_calibrate = millis();
-
-	while (millis() - time_prep_calibrate < 5000) {
-		battantGauche.LoopPrepareCalibrate();
-		battantDroit.LoopPrepareCalibrate();
+	if (this->setVoletState(-2)) {
+		this->calibration_var.state = 10;
 	}
-
-	battantGauche.StopPrepareCalibrate();
-	battantDroit.StopPrepareCalibrate();
-	Serial.println("fin prep calibration");
-
-	battantDroit.init_calibration();
-	battantGauche.init_calibration();
-	File calibration_file = LittleFS.open(F("/calibration_data.txt"), "w");
-	unsigned long time_close_bd;
-	unsigned long time_open_bd;
-	unsigned long time_close_bg;
-	unsigned long time_open_bg;
-
-	time_close_bd = battantDroit.get_time_close();
-	time_open_bd = battantDroit.get_time_close();
-	time_close_bg = battantGauche.get_time_close();
-	time_open_bg = battantGauche.get_time_close();
-	if (calibration_file) {
-		Serial.println("Write calibration data!");
-		calibration_file.print(time_close_bd);
-		calibration_file.print(time_open_bd);
-		calibration_file.print(time_close_bg);
-		calibration_file.print(time_open_bg);
-	}
-	else {
-		Serial.println("Problem on create calibration file!");
-
-	}
-
-	calibration_file.close();
-
 }
 
 bool Volet::load_calibration()
@@ -95,25 +68,144 @@ void Volet::calibrate_manual(long time_close_bd, long time_open_bd, long time_cl
 	Serial.println(time_open_bd);	
 }
 
-void Volet::setPosBG(float pos)
+void Volet::calibration_loop()
 {
-	battantGauche.setTarget(pos);
+	switch (this->calibration_var.state) {
+	case 0:
+
+		break;
+	case 10:
+		//On demande aux deux battants de se preparer pour une calibration
+		battantGauche.init_calibration();
+		battantDroit.init_calibration();
+		this->calibration_var.state = 11;
+		break;
+	case 11:
+		//On attends qu'ils soient tt les deux près
+		if (battantGauche.calibration_Ready() && battantDroit.calibration_Ready()) {
+			this->calibration_var.state = 20;
+		}
+		break;
+	case 20:
+		battantDroit.calibrateNextStep();
+		this->calibration_var.state = 21;
+
+		break;
+	case 21:
+		if (!battantDroit.calibration_inProgress()) this->calibration_var.state = 30;
+		break;
+	case 30:
+		battantGauche.calibrateNextStep();
+		this->calibration_var.state = 31;
+		break;
+	case 31:
+		if (!battantGauche.calibration_inProgress()) this->calibration_var.state = 0;
+		this->priseOrigine();
+		break;
+	default:
+		this->calibration_var.state = -1;
+		break;
+	}
 }
 
+
+//Prise d'origine
+
+void Volet::priseOrigine()
+{
+	if (this->setVoletState(-1)) {
+		this->origine_var.state = 10;
+	}
+}
+void Volet::priseOrigine_loop()
+{
+	switch (this->origine_var.state) {
+	case 0:
+
+		break;
+	case 10:
+		//On demande aux deux battants de se preparer pour une calibration
+		battantGauche.init_priseOrigine();
+		battantDroit.init_priseOrigine();
+		this->origine_var.state = 11;
+		break;
+	case 11:
+		//On attends qu'ils soient tt les deux près
+		if (battantGauche.priseOrigine_Ready() && battantDroit.priseOrigine_Ready()) {
+			this->origine_var.state = 20;
+		}
+		break;
+	case 20:
+		battantDroit.calibrateNextStep();
+		this->origine_var.state = 21;
+
+		break;
+	case 21:
+		if (!battantDroit.priseOrigine_inProgress()) this->origine_var.state = 30;
+		break;
+	case 30:
+		battantGauche.calibrateNextStep();
+		this->origine_var.state = 31;
+		break;
+	case 31:
+		if (!battantGauche.priseOrigine_inProgress()) this->origine_var.state = 0;
+		this->setVoletState(2);
+		break;
+	default:
+		this->origine_var.state = -1;
+		break;
+	}
+}
+
+
+//Contôle public
+void Volet::setPosBG(float pos)
+{
+	if(volet_state == 2) battantGauche.setTargetPosition(pos);
+}
 void Volet::setPosBD(float pos)
 {
-	battantDroit.setTarget(pos);
+	if (volet_state == 2) battantDroit.setTargetPosition(pos);
 }
+
+
+//loop
 
 void Volet::loop()
 {
-	Serial.println("1");
+	switch (this->volet_state) {
+	case -4:
+
+		break;
+	case -3:
+
+		break;
+	case -2:
+		calibration_loop();
+		break;
+	case -1:
+		priseOrigine_loop();
+		break;
+	case 0:
+		if (config_done) this->setVoletState(1);
+		break;
+	case 1:
+		this->priseOrigine();
+		break;
+	case 2:
+		if (battantDroit.getState() == -3 || battantGauche.getState() == -3) {
+			this->priseOrigine();
+		}
+		break;
+	case 3:
+
+		break;
+	}
 
 	battantDroit.loop();
-	Serial.println("2");
-
 	battantGauche.loop();
-	Serial.println("3");
-
-
 }
+
+
+
+
