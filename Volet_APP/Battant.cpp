@@ -208,18 +208,18 @@ void Battant::priseOrigineNextStep() {
 }
 bool Battant::priseOrigine_inProgress()
 {
-    return this->origine_var.state == 0;
+    return (this->origine_var.state != 0);
 }
 
 void Battant::priseOrigine_loop()
 {
+    int local_origine_state = this->origine_var.state;
     switch (this->origine_var.state) {
     case 0:
 
         break;
     case 10:
-        Serial.println("Debut calibration");
-        this->setTargetPosition(0);
+        Serial.println("Debut prise Origine");
 
         this->setDir(1);//On ouvre suffisament le battant pour être sûre qu'il ne soit pas dans la zone de chevauchement (idem sur l'autre battant) 
         this->setSpeed(255);
@@ -233,14 +233,19 @@ void Battant::priseOrigine_loop()
             this->setSpeed(0);
             this->updatePontH();
             this->origine_var.state = 12;
+            Serial.println("attente confirmation");
+
         }
         break;
     case 12:
 
         break;
     case 20:
+        Serial.println("debut mise en pos");
+
         //On ferme le battant
         this->setTargetPosition(0);
+        this->setDir(0);
         this->setSpeed(255);
         this->updatePontH();
         this->origine_var.state = 21;
@@ -248,6 +253,8 @@ void Battant::priseOrigine_loop()
     case 21:
         //une fois le battant en butée, on considère la position actuelle comme 0
         if (this->isInStopperClose()) {
+            Serial.println("butté atteinte");
+            this->setDir(0);
             this->setSpeed(0);
             this->updatePontH();
             this->origine_var.state = 0;
@@ -263,30 +270,40 @@ void Battant::priseOrigine_loop()
 
 //loop
 void Battant::loop() {
-    switch (battant_state) {
-        case -3:
+    int battant_state_local = this->battant_state;
+    switch (battant_state_local) {
+       case -3:
 
             break;
-        case -2:
+        case -2: {
             this->calibrate_loop();
             break;
-        case -1:
+        }
+        case -1: {
             this->priseOrigine_loop();
             break;
-        case 0:
-            if (config_done == 1) this->setBattantState(1);
+        }
+        case 0: {
+            if (config_done == 1) {
+                this->setBattantState(1);
+            }
+
             break;
-        case 1:
+        }
+        case 1: {
             this->setBattantState(-3);
             break;
+        }
+        case 2: {
+            updateSpeedAndDirForTarget();
+            break;
+        }
         default:
             this->updateSpeedAndDirForTarget();
             this->updatePontH();
             break;
-
     }
 
-   
     debug();
 }
 
@@ -294,11 +311,11 @@ void Battant::loop() {
 //configuration
 Battant::Battant(uint8_t addr_i2c)
     : ampVolet(addr_i2c) {
-    //while (ampVolet.begin(&Wire) != true) {
+    while (ampVolet.begin(&Wire) != true) {
     Serial.print("ampVolet begin faild ");
     Serial.println(addr_i2c);
     delay(2000);
-    // }
+    }
     ampVolet.setCalibration_32V_2A();
     battant_state = 0;
     config_done = 0;
@@ -320,7 +337,7 @@ void Battant::config(configBattant battConf)
     this->inStopperOpen = 0;
     this->inStopperClose = 0;
     this->lastMesurePosition = 0;
-    this->setMaxCouple(4000);
+    this->setMaxCouple(3000);
     cst_K = 110.247;
 
     currentPos = 0;
@@ -364,7 +381,7 @@ void Battant::setMaxCouple(int max_)
 //Contrôle Public
 void Battant::setTargetPosition(float pos)
 {
-    if (pos <= 100 && pos >= 100) targetPos = pos; // si la position est superieur a 100 on ne modifie la position voulue
+    if (pos <= 100 && pos >= 0) targetPos = pos; // si la position est superieur a 100 on ne modifie la position voulue
 
 }
 float Battant::getTargetPosition()
@@ -426,9 +443,10 @@ void Battant::stop()
     this->setSpeed(0);
     this->updatePontH();
 }
-bool Battant::setBattantState(char state)
+bool Battant::setBattantState(int state_)
 {
-    this->battant_state = state;
+    battant_state = state_;
+    return true;
 }
 void Battant::updatePontH()
 {
@@ -494,8 +512,8 @@ float Battant::getCurrentCouple()
 
 //Contrôle autonome de la position
 void Battant::updateSpeedAndDirForTarget() {
-    float trueTargetPos;
-    if (battantType == 0) {//premier a ce fermer  securité antichevauchement
+    float trueTargetPos = this->getTargetPosition();
+    /*if (battantType == 0) {//premier a ce fermer  securité antichevauchement
         if (this->getTargetPosition() < 10) {
             if (this->getAutreBatantPos() < 10) {
                 trueTargetPos = 15;
@@ -521,31 +539,65 @@ void Battant::updateSpeedAndDirForTarget() {
             trueTargetPos = getTargetPosition();
         }
     }
+    */
+    if (trueTargetPos == 100) {
+        if (!this->isInStopperOpen()) {
+            if (this->getCurrentPosition() > 100) {
+                currentPos = 100;
+            }
+            this->setDir(1);
+            this->setSpeed(255);
+        }
+        else{
+            currentPos = 100;
+            this->setDir(1);
+            this->setSpeed(0); ;
+        }
+    }else if (trueTargetPos == 0) {
+        if (!this->isInStopperClose()) {
+            if (this->getCurrentPosition() < 0) {
+                currentPos = 0;
+            }
+            this->setDir(0);
+            this->setSpeed(255);
+        }
+        else {
+            currentPos = 0;
+            this->setDir(0);
+            this->setSpeed(0);
+        }
+    }  
+    else if (trueTargetPos > this->getCurrentPosition()+1) {
+       
+           this->setDir(1);
+           this->setSpeed(255);
 
-   if (trueTargetPos > this->getCurrentPosition()+1) {
-        this->setDir(1);
-        this->setSpeed(255);
     }
-    else if (trueTargetPos < this->getCurrentPosition()-1) {
+    else if (trueTargetPos < this->getCurrentPosition() - 1) {
+
+
         this->setDir(0);
         this->setSpeed(255);
+
     }
     else {
         this->setSpeed(0);
     }
+   updatePontH();
 }
-
 
 //autre
 void Battant::debug()
 {
     if (this->battantType == 0) {
-        auto debug_currentPos = this->currentPos;
-        auto debug_TargetPos = this->targetPos;
+        auto debug_currentPos_0 = this->currentPos;
+        auto debug_TargetPos_0 = this->targetPos;
+        auto speed_0 = this->speed;
     }
     else {
-        auto debug_currentPos = this->currentPos;
-        auto debug_TargetPos = this->targetPos;
+        auto debug_currentPos_1 = this->currentPos;
+        auto debug_TargetPos_1 = this->targetPos;
+        auto speed_1 = this->speed;
 
     }
 }

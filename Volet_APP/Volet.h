@@ -40,14 +40,14 @@ private:
 		1 : Demarrage
 		2 : Pret
 	*/
-	char volet_state;
+    int volet_state;
 	bool config_done;
 
 
 
 	///Variable de calibrate_loop (pour fonctionnement assync)
 	struct Calibration_var_set {
-		char state;
+		int state;
 		/* calibration_state
 		indique l'avancement actuel de la calibration:
 		0  : pas de calibration en cours
@@ -62,7 +62,7 @@ private:
 
 	Calibration_var_set calibration_var;
 	struct Origine_var_set {
-		char state;
+		int state;
 		/* origine_var.state
 		indique l'avancement actuel de la prise d'origine:
 		0  : pas de prise d'origine en cours
@@ -78,7 +78,7 @@ private:
 
 
 	//config 
-	bool setVoletState(char state);
+	bool setVoletState(int state);
 
 	/// loops
 	void calibration_loop();
