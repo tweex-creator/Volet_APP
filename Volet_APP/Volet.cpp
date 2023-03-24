@@ -3,10 +3,7 @@
 //Configuration
 Volet::Volet(uint8_t addr_i2c_droit, uint8_t addr_i2c_gauche):battantDroit(addr_i2c_droit), battantGauche(addr_i2c_gauche)
 {
-	volet_state = 0;
-	config_done = 0;
-	calibration_var.state = 0;
-	origine_var.state = 0;
+	
 }
 
 void Volet::config(configBattant bg, configBattant bd)
@@ -18,7 +15,7 @@ void Volet::config(configBattant bg, configBattant bd)
 	config_done = 1;
 }
 
-bool Volet::setVoletState(int state)
+bool Volet::setVoletState(char state)
 {
 	this->volet_state = state;
 	return true;
@@ -127,7 +124,6 @@ void Volet::priseOrigine_loop()
 
 		break;
 	case 10:
-		Serial.println("[VOLET] Start prise origine");
 		//On demande aux deux battants de se preparer pour une calibration
 		battantGauche.init_priseOrigine();
 		battantDroit.init_priseOrigine();
@@ -140,26 +136,20 @@ void Volet::priseOrigine_loop()
 		}
 		break;
 	case 20:
-		battantDroit.priseOrigineNextStep();
+		battantDroit.calibrateNextStep();
 		this->origine_var.state = 21;
 
 		break;
 	case 21:
-		if (!battantDroit.priseOrigine_inProgress()) {
-			this->origine_var.state = 30;
-		}
+		if (!battantDroit.priseOrigine_inProgress()) this->origine_var.state = 30;
 		break;
 	case 30:
-		battantGauche.priseOrigineNextStep();
+		battantGauche.calibrateNextStep();
 		this->origine_var.state = 31;
 		break;
 	case 31:
-		if (!battantGauche.priseOrigine_inProgress()) {
-			this->origine_var.state = 0;
-			this->setVoletState(2); 
-			Serial.println("[VOLET] Fin prise origine");
-
-		}
+		if (!battantGauche.priseOrigine_inProgress()) this->origine_var.state = 0;
+		this->setVoletState(2);
 		break;
 	default:
 		this->origine_var.state = -1;
@@ -183,7 +173,6 @@ void Volet::setPosBD(float pos)
 
 void Volet::loop()
 {
-	int state_vol_debug = this->volet_state;
 	switch (this->volet_state) {
 	case -4:
 
@@ -211,14 +200,10 @@ void Volet::loop()
 	case 3:
 
 		break;
-	default:
-		Serial.print("wrong state: ");
-		Serial.println(this->volet_state);
-		break;
 	}
 
 	battantDroit.loop();
-	battantGauche.loop(); 
+	battantGauche.loop();
 }
 
 

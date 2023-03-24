@@ -41,7 +41,7 @@ public:
 	unsigned long get_time_open();
 	void setMaxCouple(int max);
 
-	int config_done;//0 si pas faite, 1 si ready, -1 si l'adresse de l'autre battant communiqué, 2 si la config est chargé
+	char config_done;//0 si pas faite, 1 si ready, -1 si l'adresse de l'autre battant communiqué, 2 si la config est chargé
 
 
 	//Contrôle Public
@@ -105,7 +105,7 @@ private:
 		4 : En cours d'ouverture
 		5 : En cours de fermeture
 	*/
-	int battant_state;
+	char battant_state; 
 	float currentPos; // indique la postion estimée actuel du battant (entre 0% -> fermé et 100% -> ouvert)
 	float targetPos;  // Indique la postion qui à été donné en consigne au battant
 	float true_targetPos; //Indique la position vers la quelle se dirige actuellement le battant. Peut differer de targetPos si les battants sont dans leurs zone de chevauchement pour eviter les collisions
@@ -122,7 +122,7 @@ private:
 	
 	///Variable de calibrate_loop (pour fonctionnement assync)
 	struct calibration_var_set {
-		int state;
+		char state;
 		/* calibration_state
 		indique l'avancement actuel de la calibration:
 		-1 : Erreur inconnue lors de la calibration
@@ -151,7 +151,7 @@ private:
 
 	///Variable pour la prise d'origine(pour fonctionnement assync)
 	struct origine_var_set {
-		int state;
+		char state;
 		/* origine_var_set.state
 		indique l'avancement actuel de la prise d'origine:
 			0  : Pas de prise d'origine en cours
@@ -167,7 +167,7 @@ private:
 	origine_var_set origine_var;
 
 	//config
-	bool setBattantState(int state);    // Permet de mettre à jour l'état actuelle du battant (variable char battant_state)
+	bool setBattantState(char state);    // Permet de mettre à jour l'état actuelle du battant (variable char battant_state)
 
 	
 	//loops
