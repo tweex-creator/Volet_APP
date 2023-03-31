@@ -31,8 +31,8 @@ void loop() {
 
 	volet->config(battant_gauche_conf, battant_droit_conf);
 
-	//volet.init_calibration();
-	volet->calibrate_manual(15815,15755,15492,15554);
+	//volet->calibrate();
+	volet->calibrate_manual(20196, 20502, 20196, 20196);
 
 	//volet.setPosBD(0.0);
 	//volet.setPosBG(0.0);

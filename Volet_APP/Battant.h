@@ -87,7 +87,10 @@ private:
 	////Variables de detection des fin de courses
 	unsigned long firstTimeOverTorqueOpen;  //Garde en mémoire le temps où la couple a été trop elevé pour la première fois afin de pouvoir detecter une butée si la situation dure
 	unsigned long firstTimeOverTorqueClose; // idem que firstTimeOverTorqueOpen pour la fermeture
+	unsigned long lastCurrentMesure; // idem que firstTimeOverTorqueOpen pour la fermeture
 
+	float moyenneAmp[10];
+	float amp;
 	///Variables d'états des fin de course
 	bool inStopperOpen;
 	bool inStopperClose;
@@ -185,7 +188,7 @@ private:
 	//Detection de butées
 	bool isInStopperClose();   //Retourne True si le volet est en buté ouverte, False Sinon.
 	bool isInStopperOpen();	   //Retourne True si le volet est en buté fermé, False Sinon
-	float getIntensite();// Permet de recuperer l'intensité du courant absorber par le moteur
+	float getAndUpdateIntensite(bool instant = false);// Permet de recuperer l'intensité du courant absorber par le moteur
 	float getCurrentCouple();
 
 	//Contrôle autonome de la position

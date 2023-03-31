@@ -102,8 +102,10 @@ void Volet::calibration_loop()
 		this->calibration_var.state = 31;
 		break;
 	case 31:
-		if (!battantGauche.calibration_inProgress()) this->calibration_var.state = 0;
-		this->priseOrigine();
+		if (!battantGauche.calibration_inProgress()) {
+			this->calibration_var.state = 0;
+			this->priseOrigine();
+		}
 		break;
 	default:
 		this->calibration_var.state = -1;
@@ -146,6 +148,12 @@ void Volet::priseOrigine_loop()
 		break;
 	case 21:
 		if (!battantDroit.priseOrigine_inProgress()) {
+			this->origine_var.state = 22;
+			this->origine_var.clock = millis();
+		}
+		break;
+	case 22:
+		if (millis() - this->origine_var.clock > 2000) {
 			this->origine_var.state = 30;
 		}
 		break;
