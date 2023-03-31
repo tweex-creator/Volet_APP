@@ -153,7 +153,7 @@ void Volet::priseOrigine_loop()
 		}
 		break;
 	case 22:
-		if (millis() - this->origine_var.clock > 2000) {
+		if (millis() - this->origine_var.clock > 200) {
 			this->origine_var.state = 30;
 		}
 		break;

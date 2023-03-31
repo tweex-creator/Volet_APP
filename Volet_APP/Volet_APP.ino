@@ -5,6 +5,8 @@
 */
 
 // the setup function runs once when you press reset or power the board
+#include <DHT_U.h>
+#include <DHT.h>
 #include <Preferences.h>
 #include <SD_MMC.h>
 #include <sd_defines.h>
@@ -36,7 +38,13 @@ void loop() {
 
 	//volet.setPosBD(0.0);
 	//volet.setPosBG(0.0);
+	unsigned long perf = millis();
+	unsigned long perf2;
 	while (true) {
+		//perf2 = millis() - perf;
+		//Serial.print("perf: ");
+		//Serial.println(perf2);
+		//perf = millis();
 		volet->loop();
 		if (Serial.available()) {
 			float pos_serie = Serial.parseFloat();

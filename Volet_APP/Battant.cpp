@@ -307,17 +307,12 @@ void Battant::loop() {
             this->setBattantState(-3);
             break;
         }
-        case 2: {
-            updateSpeedAndDirForTarget();
-            break;
-        }
+ 
         default:
             this->updateSpeedAndDirForTarget();
-            this->updatePontH();
             break;
     }
 
-    debug();
 }
 
 
@@ -332,7 +327,7 @@ Battant::Battant(uint8_t addr_i2c)
     ampVolet.setCalibration_32V_2A();
     battant_state = 0;
     config_done = 0;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < N_MOYENNE_AMP; i++) {
         moyenneAmp[i] = 0;
     }
 }
@@ -353,9 +348,7 @@ void Battant::config(configBattant battConf)
     this->inStopperOpen = 0;
     this->inStopperClose = 0;
     this->lastMesurePosition = 0;
-    this->setMaxCouple(50);
-    cst_K = 1;
-
+    this->setMaxAmp(50.0);
     currentPos = 0;
 
     if (config_done < 2 && config_done != 1) {
@@ -389,9 +382,9 @@ unsigned long Battant::get_time_open()
 
 }
 
-void Battant::setMaxCouple(int max_)
+void Battant::setMaxAmp(float max_)
 {
-    this->maxCouple = max_;
+    this->maxAmp = max_;
 }
 
 //Contrôle Public
@@ -480,7 +473,7 @@ void Battant::updatePontH()
 //Detection de butées
 bool Battant::isInStopperClose()
 {
-    if (-1 * getCurrentCouple() > maxCouple) {
+    if (-1 * getAndUpdateIntensite() > maxAmp) {
         if (firstTimeOverTorqueClose == 0) {
             firstTimeOverTorqueClose = millis();
 
@@ -499,7 +492,7 @@ bool Battant::isInStopperClose()
 }
 bool Battant::isInStopperOpen()
 {
-    if (getCurrentCouple() > maxCouple) {
+    if (getAndUpdateIntensite() > maxAmp) {
         if (firstTimeOverTorqueOpen == 0) {
             firstTimeOverTorqueOpen = millis();
         }
@@ -521,33 +514,23 @@ float Battant::getAndUpdateIntensite(bool instant)
 {
     if (millis() - lastCurrentMesure > 100) {
         lastCurrentMesure = millis();
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < N_MOYENNE_AMP-1; i++) {
             moyenneAmp[i] = moyenneAmp[i+1];
         }
-        moyenneAmp[9] = ampVolet.getCurrent_mA();
-        for (int i = 0; i < 10; i++) {
+        moyenneAmp[N_MOYENNE_AMP-1] = ampVolet.getCurrent_mA();
+        for (int i = 0; i < N_MOYENNE_AMP; i++) {
             amp += moyenneAmp[i];
         }
-        amp = amp / 10;
+        amp = amp / N_MOYENNE_AMP;
     
     }
-    if (battantType == 0) {
-        true;
-
-    }
-    else {
-
-        true;
-    }
+ 
     if (instant) {
-        return  moyenneAmp[9];
+        return  moyenneAmp[N_MOYENNE_AMP-1];
     }
     return amp;
 }
-float Battant::getCurrentCouple()
-{
-    return cst_K * this->getAndUpdateIntensite();
-}
+
 
 //Contrôle autonome de la position
 void Battant::updateSpeedAndDirForTarget() {
@@ -625,21 +608,7 @@ void Battant::updateSpeedAndDirForTarget() {
    updatePontH();
 }
 
-//autre
-void Battant::debug()
-{
-    if (this->battantType == 0) {
-        auto debug_currentPos_0 = this->currentPos;
-        auto debug_TargetPos_0 = this->targetPos;
-        auto speed_0 = this->speed;
-    }
-    else {
-        auto debug_currentPos_1 = this->currentPos;
-        auto debug_TargetPos_1 = this->targetPos;
-        auto speed_1 = this->speed;
 
-    }
-}
 int Battant::getAutreBatantPos()
 {
     return autreBattant->getCurrentPosition();
