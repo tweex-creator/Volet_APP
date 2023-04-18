@@ -22,7 +22,8 @@ void Battant::calibrateNextStep() {
 }
 bool Battant::calibration_inProgress()
 {
-    return this->calibration_var.state == 0;
+
+    return this->calibration_var.state != 0;
 }
 void Battant::cancel_calibration()
 {
@@ -113,7 +114,7 @@ void Battant::calibrate_loop()
         break;
 
     case 30:
-        this->setDir(1);//On met le battant en postion fermé 
+        this->setDir(1);//On met le battant en postion ouverte 
         this->setSpeed(255);
         this->updatePontH();
         this->calibration_var.clock1 = millis();
@@ -132,7 +133,7 @@ void Battant::calibrate_loop()
         break;
 
     case 32:
-        this->setDir(0);//On lance l'ouverture et on declanche le chrono
+        this->setDir(0);//On lance la fermeture et on declanche le chrono
         this->setSpeed(255);
         this->updatePontH();
         this->calibration_var.clock1 = millis();
@@ -156,6 +157,8 @@ void Battant::calibrate_loop()
         }
         else if (millis() - this->calibration_var.clock1 > 30000) {// si le battant met un temps anormalement long à s'ouvrire , on le met en erreur
             this->calibration_var.state = -1;
+            this->setSpeed(0);
+            this->updatePontH();
         }
         break;
     case 34:
@@ -163,11 +166,11 @@ void Battant::calibrate_loop()
         break;
 
     case 99:
-        this->setDir(1);//On lance l'ouverture et on declanche le chrono
+        this->setDir(1);//On lance l'ouverture et on declanche le chrono se mettre dans une position intermédiaire qui laisse de la place pour calibrer l'autre battant
         this->setSpeed(255);
         this->updatePontH();
         this->calibration_var.clock1 = millis();
-        this->calibration_var.state = 30;
+        this->calibration_var.state = 100;
         break;
     case 100:
         if (millis() - this->calibration_var.clock1 > 5000) {
@@ -175,7 +178,16 @@ void Battant::calibrate_loop()
             this->updatePontH();
             this->calibration_var.state = 0;
             this->battant_state = -1;
-            Serial.println("fin calibration");
+            if (battantType) {
+                Serial.println("fin calibration battant gauche");
+               
+            }else{
+                Serial.println("fin calibration battant droit");
+            }
+            Serial.print("Ouverture: ");
+            Serial.print(this->tempsOuverture);
+            Serial.print("  Fermeture: ");
+            Serial.println(this->tempsFermerture);
         }
         break;
     default:
@@ -271,6 +283,7 @@ void Battant::priseOrigine_loop()
 //loop
 void Battant::loop() {
     int battant_state_local = this->battant_state;
+    getAndUpdateIntensite();
     switch (battant_state_local) {
        case -3:
 
@@ -294,24 +307,19 @@ void Battant::loop() {
             this->setBattantState(-3);
             break;
         }
-        case 2: {
-            updateSpeedAndDirForTarget();
-            break;
-        }
+ 
         default:
             this->updateSpeedAndDirForTarget();
-            this->updatePontH();
             break;
     }
 
-    debug();
 }
 
 
 //configuration
 Battant::Battant(uint8_t addr_i2c)
     : ampVolet(addr_i2c) {
-    while (ampVolet.begin(&Wire) != true) {
+    while (ampVolet.begin() != true) {
     Serial.print("ampVolet begin faild ");
     Serial.println(addr_i2c);
     delay(2000);
@@ -319,6 +327,9 @@ Battant::Battant(uint8_t addr_i2c)
     ampVolet.setCalibration_32V_2A();
     battant_state = 0;
     config_done = 0;
+    for (int i = 0; i < N_MOYENNE_AMP; i++) {
+        moyenneAmp[i] = 0;
+    }
 }
 
 void Battant::config(configBattant battConf)
@@ -333,13 +344,11 @@ void Battant::config(configBattant battConf)
     dir = 0;
 
     this->firstTimeOverTorqueOpen = 0;
-    this->maxTimeOverTorque = 100;
+    this->maxTimeOverTorque = 0;
     this->inStopperOpen = 0;
     this->inStopperClose = 0;
     this->lastMesurePosition = 0;
-    this->setMaxCouple(3000);
-    cst_K = 110.247;
-
+    this->setMaxAmp(50.0);
     currentPos = 0;
 
     if (config_done < 2 && config_done != 1) {
@@ -373,9 +382,9 @@ unsigned long Battant::get_time_open()
 
 }
 
-void Battant::setMaxCouple(int max_)
+void Battant::setMaxAmp(float max_)
 {
-    this->maxCouple = max_;
+    this->maxAmp = max_;
 }
 
 //Contrôle Public
@@ -464,7 +473,7 @@ void Battant::updatePontH()
 //Detection de butées
 bool Battant::isInStopperClose()
 {
-    if (-1 * getCurrentCouple() > maxCouple) {
+    if (-1 * getAndUpdateIntensite() > maxAmp) {
         if (firstTimeOverTorqueClose == 0) {
             firstTimeOverTorqueClose = millis();
 
@@ -483,7 +492,7 @@ bool Battant::isInStopperClose()
 }
 bool Battant::isInStopperOpen()
 {
-    if (getCurrentCouple() > maxCouple) {
+    if (getAndUpdateIntensite() > maxAmp) {
         if (firstTimeOverTorqueOpen == 0) {
             firstTimeOverTorqueOpen = millis();
         }
@@ -501,14 +510,27 @@ bool Battant::isInStopperOpen()
 
     return inStopperOpen;
 }
-float Battant::getIntensite()
+float Battant::getAndUpdateIntensite(bool instant)
 {
-    return ampVolet.getCurrent_mA();
+    if (millis() - lastCurrentMesure > 100) {
+        lastCurrentMesure = millis();
+        for (int i = 0; i < N_MOYENNE_AMP-1; i++) {
+            moyenneAmp[i] = moyenneAmp[i+1];
+        }
+        moyenneAmp[N_MOYENNE_AMP-1] = ampVolet.getCurrent_mA();
+        for (int i = 0; i < N_MOYENNE_AMP; i++) {
+            amp += moyenneAmp[i];
+        }
+        amp = amp / N_MOYENNE_AMP;
+    
+    }
+ 
+    if (instant) {
+        return  moyenneAmp[N_MOYENNE_AMP-1];
+    }
+    return amp;
 }
-float Battant::getCurrentCouple()
-{
-    return cst_K * this->getIntensite();
-}
+
 
 //Contrôle autonome de la position
 void Battant::updateSpeedAndDirForTarget() {
@@ -586,21 +608,7 @@ void Battant::updateSpeedAndDirForTarget() {
    updatePontH();
 }
 
-//autre
-void Battant::debug()
-{
-    if (this->battantType == 0) {
-        auto debug_currentPos_0 = this->currentPos;
-        auto debug_TargetPos_0 = this->targetPos;
-        auto speed_0 = this->speed;
-    }
-    else {
-        auto debug_currentPos_1 = this->currentPos;
-        auto debug_TargetPos_1 = this->targetPos;
-        auto speed_1 = this->speed;
 
-    }
-}
 int Battant::getAutreBatantPos()
 {
     return autreBattant->getCurrentPosition();

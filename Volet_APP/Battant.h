@@ -2,7 +2,7 @@
 #include <Adafruit_INA219.h>
 #define MIN_TIME_OPEN_CLOSE_IN_MS 5000
 #define MAX_ANGLE_BOTH_BATTANT_WORK 10
-
+#define N_MOYENNE_AMP 10
 class Battant;
 
 struct configBattant {
@@ -39,7 +39,7 @@ public:
 	void set_time_open(long time_);
 	unsigned long get_time_close();
 	unsigned long get_time_open();
-	void setMaxCouple(int max);
+	void setMaxAmp(float max);
 
 	int config_done;//0 si pas faite, 1 si ready, -1 si l'adresse de l'autre battant communiqué, 2 si la config est chargé
 
@@ -76,8 +76,7 @@ private:
 
 	////Configuration fixe (paramètres du battant constants)
 	bool battantType; //0 battant qui doit se fermer en premier, 1, battant qui doit se fermer en deuxième.
-	float cst_K;      //Constante du moteur permettant de passer du courant au couple
-	float maxCouple;  //Couple maximum autorisé en foncitonnement normal
+	float maxAmp;  //Couple maximum autorisé en foncitonnement normal
 	int maxTimeOverTorque; // temps maximum autorisé au dela du couple maximum autorisé
 
 	////Données de calibration
@@ -87,7 +86,10 @@ private:
 	////Variables de detection des fin de courses
 	unsigned long firstTimeOverTorqueOpen;  //Garde en mémoire le temps où la couple a été trop elevé pour la première fois afin de pouvoir detecter une butée si la situation dure
 	unsigned long firstTimeOverTorqueClose; // idem que firstTimeOverTorqueOpen pour la fermeture
+	unsigned long lastCurrentMesure; // idem que firstTimeOverTorqueOpen pour la fermeture
 
+	float moyenneAmp[N_MOYENNE_AMP];
+	float amp;
 	///Variables d'états des fin de course
 	bool inStopperOpen;
 	bool inStopperClose;
@@ -185,15 +187,13 @@ private:
 	//Detection de butées
 	bool isInStopperClose();   //Retourne True si le volet est en buté ouverte, False Sinon.
 	bool isInStopperOpen();	   //Retourne True si le volet est en buté fermé, False Sinon
-	float getIntensite();// Permet de recuperer l'intensité du courant absorber par le moteur
-	float getCurrentCouple();
+	float getAndUpdateIntensite(bool instant = false);// Permet de recuperer l'intensité du courant absorber par le moteur
 
 	//Contrôle autonome de la position
 	//Contrôle haut niveau
 	void updateSpeedAndDirForTarget(); //Mets à jours les consignes de vitesse afin d'atteindre la position voulue pour le battant
 	
 	//autre
-	void debug();//Permet d'envoyer les données de debugage sur le port Serie
 	int getAutreBatantPos();
 };
 

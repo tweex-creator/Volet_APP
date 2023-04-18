@@ -73,6 +73,7 @@ private:
 		30 : Lancement prise d'origine battant gauche
 		31 : Prise d'origine battant gauche
 		*/
+		unsigned long clock;
 	};
 	Origine_var_set origine_var;
 

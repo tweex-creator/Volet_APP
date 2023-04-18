@@ -22,6 +22,9 @@
     <ClCompile Include="Volet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Capteurs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="__vm\.Volet_APP.vsarduino.h">
@@ -31,6 +34,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Volet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Capteurs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
