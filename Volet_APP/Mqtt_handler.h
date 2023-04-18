@@ -11,12 +11,15 @@ public:
 	void callback(char* topic, byte* message, unsigned int length);
 private:
 	const char* mqtt_server;
+	char* id;
 	WiFiClient espClient;
 	PubSubClient client;
 
 	void reconnect();
 	unsigned long lastReconnectAttempt;
 
+	void sendRecap();
+	unsigned long lastSendRecap;
 
 	void subscribe();
 };

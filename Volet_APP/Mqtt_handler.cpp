@@ -17,6 +17,7 @@ Mqtt_handler::Mqtt_handler(const char* mqtt_server):client(espClient)
 	client.setServer(mqtt_server, 1883);
     client.setCallback(callback_ext);
     lastReconnectAttempt = -1; // -1 allows the first attempt to be made immediately
+    id = "volet1";
 }
 
 Mqtt_handler::~Mqtt_handler()
@@ -28,8 +29,14 @@ void Mqtt_handler::loop()
 {
     if (!client.connected()) {
 		this->reconnect();
-	}
-	client.loop();
+    }
+    if (client.connected()) {
+        if (millis() - lastSendRecap > 5000) {
+            lastSendRecap = millis();
+            this->sendRecap();
+        }
+        client.loop();
+    }
 }
 
 void Mqtt_handler::reconnect()
@@ -88,4 +95,12 @@ void Mqtt_handler::callback(char* topic, byte* message, unsigned int length) {
             Serial.println("off");
         }
     }
+}
+
+void Mqtt_handler::sendRecap() {
+
+    // Send recap
+    String id(this->id);
+    String topic = id + "/battant/gauche/position";
+	client.publish(topic, "on");
 }
