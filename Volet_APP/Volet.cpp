@@ -185,6 +185,27 @@ float Volet::getPosBD()
 	return this->battantDroit.getCurrentPosition();
 }
 
+float Volet::getTargetBD()
+{
+	return battantDroit.getTargetPosition();
+}
+
+
+float Volet::getTargetBG()
+{
+	return battantGauche.getTargetPosition();
+}
+
+float Volet::getRealTargetBD()
+{
+	return battantDroit.getRealTargetPosition();
+}
+
+float Volet::getRealTargetBG()
+{
+	return battantGauche.getRealTargetPosition();
+}
+
 void Volet::loop()
 {
 	int state_vol_debug = this->volet_state;

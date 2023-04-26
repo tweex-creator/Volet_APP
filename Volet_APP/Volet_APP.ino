@@ -13,9 +13,15 @@
 #include "Capteurs.h"
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include "Mqtt_handler.h"
-#include "webServer.h"
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
 
+AsyncWebServer server(80);
+const char* ap_ssid = "volet";
+const char* ap_password = "voletApp12345";
 
+Volet* link_volet = nullptr;
+Capteurs* link_capteurs = nullptr;
 void setup() {
 	Serial.begin(115200);
 	WiFi.mode(WIFI_STA); // explicitly set mode, esp defaults to STA+AP
@@ -52,10 +58,72 @@ void setup() {
 	
 	
 	Serial.println("Starting...");
+
+	WiFi.softAP(ap_ssid, ap_password);
+
+	Serial.print("Access Point \"");
+	Serial.print(ap_ssid);
+	Serial.println("\" started");
+	// Route for root / web page
+	server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+		request->send_P(200, "text/html", "welcome");
+		});
+
+	server.on("/ouvrir", HTTP_GET, [](AsyncWebServerRequest* request) {
+		int value = request->getParam("val")->value().toInt();
+		Serial.print("value received: ");
+		Serial.println(value);
+		link_volet->setPosBD(value);
+		link_volet->setPosBG(value);
+		request->send_P(200, "text/html", "deplacement en cours...");
+		});
+
+	server.on("/po", HTTP_GET, [](AsyncWebServerRequest* request) {
+		link_volet->priseOrigine();
+		request->send_P(200, "text/html", "Prise origine en cours...");
+		});
+
+	server.on("/calibration", HTTP_GET, [](AsyncWebServerRequest* request) {
+		link_volet->calibrate();
+		request->send_P(200, "text/html", "calibration en cours...");
+		});
+
+	server.on("/data", HTTP_GET, [](AsyncWebServerRequest* request) {
+
+		String text = "<html>  <head>    <title>HTML in 10 Simple Steps or Less</title>    <meta http-equiv=\"refresh\" content=\"1\" /> </head> <body>";
+			"valeurs des capteurs: <br>";
+		text += "	Interieur: <br>";
+		text += "humidite: " + String(link_capteurs->getHumInt()) + "<br>";
+		text += "Temperature: " + String(link_capteurs->getTempInt()) + "<br> <br>";
+
+		text += "	Exterieur: <br>";
+		text += "humidite: " + String(link_capteurs->getHumExt()) + "<br>";
+		text += "Temperature: " + String(link_capteurs->getTempExt()) + "<br>";		
+		text += "Luminosite: " + String(link_capteurs->getLuxExt()) + "<br> <br>";	
+
+		text += "	Position des volets:<br>";
+		text += "battant gauche: " + String(link_volet->getPosBG()) + "<br>";		
+		text += "battant droit: " + String(link_volet->getPosBD()) + "<br><br>";
+
+		text += "	Position desiree:<br>";
+		text += "battant gauche: " + String(link_volet->getTargetBG()) + "<br>";
+		text += "battant droit: " + String(link_volet->getTargetBD()) + "<br><br>";
+
+		text += "	Position virtuelle:<br>";
+		text += "battant gauche: " + String(link_volet->getRealTargetBG()) + "<br>";
+		text += "battant droit: " + String(link_volet->getRealTargetBD()) + "<br>";
+		text += "  </body></html>";
+
+		request->send_P(200, "text/html", text.c_str());
+		});
+	server.begin();
+
 }
+
 
 void loop() {
 	Volet* volet = new Volet(0x44, 0x40);
+	link_volet = volet;
 	configBattant battant_droit_conf;
 	configBattant battant_gauche_conf;
 	battant_droit_conf.battantType = 1;
@@ -71,9 +139,8 @@ void loop() {
 	//volet->calibrate();
 	volet->calibrate_manual(20196, 20502, 20196, 20196);
 
-	unsigned long perf = millis();
-	unsigned long perf2;
 	Capteurs capteurs(25, 26, 27, 14);
+	link_capteurs = &capteurs;
 	const char* mqtt_server = "192.168.43.249";
 	Mqtt_handler mqtt(mqtt_server, volet, &capteurs);
 	while (true) {

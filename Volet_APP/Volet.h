@@ -23,6 +23,11 @@ public:
 	//Récupération des infos
 	float getPosBG();
 	float getPosBD();
+	float getTargetBD();
+	float getTargetBG();
+	float getRealTargetBD();
+	float getRealTargetBG();
+
 	//loop
 	void loop();
 
