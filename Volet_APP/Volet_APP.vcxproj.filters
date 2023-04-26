@@ -25,6 +25,9 @@
     <ClCompile Include="Capteurs.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Mqtt_handler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="__vm\.Volet_APP.vsarduino.h">
@@ -37,6 +40,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Capteurs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Mqtt_handler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

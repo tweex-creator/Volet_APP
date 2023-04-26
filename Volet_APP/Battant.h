@@ -28,6 +28,9 @@ public:
 	void priseOrigineNextStep(); //Une fois le battant en postion legerment ouverte, il faudrat appelé la fonction next step pour pouvoir demarrer la calibration
 	bool priseOrigine_inProgress();  // Renvoie vraie tant que l'etat de la calibration n'est pas à 0 soit pas en cours
 
+	//Gestion des obstacles
+	void initStopSecurity();
+	void handleStopSecurity();
 	//loop
 	void loop();// a appelé le plus régulièrement possible pour assurer le bon focntionnement du voolet(minimum 10 fois par seconde)
 
@@ -51,7 +54,7 @@ public:
 
 	float getCurrentPosition(); // renvoie la postition actuelle du battant (-1 si inconnue)
 
-	char getState();
+	int getState();
 
 	
 
@@ -97,6 +100,7 @@ private:
 	///Variables d'états general
 	/*
 	indique l'état actuel du battant:
+	   -4 : Erreur de butté, le volet a rencontré un obstacle et attent une nouvelle position pour agir
 	   -3 : En erreur d'origine, le battant ne connait pas sa postion et doit faire une prise d'origine
 	   -2 : En cours de calibration
 	   -1 : Prise d'origine
@@ -168,6 +172,21 @@ private:
 	};
 	origine_var_set origine_var;
 
+	///Variable pour la gestion des obstacles
+	struct emmergency_stopper_var_set {
+		int state;
+		/* emmergency_stopper_var_set.state
+		indique l'avancement actuel de la prise d'origine:
+			0  : Inversion du sens de fontionnement et vitesse max
+			1 : Attente de 3 secondes
+			2 : Arret
+
+		*/
+		unsigned long clock1;    // Permet de faire des mes mesures de temps dans la loop
+
+	};
+	emmergency_stopper_var_set emmergency_stopper_var;
+
 	//config
 	bool setBattantState(int state);    // Permet de mettre à jour l'état actuelle du battant (variable char battant_state)
 
@@ -187,9 +206,12 @@ private:
 	//Detection de butées
 	bool isInStopperClose();   //Retourne True si le volet est en buté ouverte, False Sinon.
 	bool isInStopperOpen();	   //Retourne True si le volet est en buté fermé, False Sinon
+	bool overCurrentSecurityDetector();
 	float getAndUpdateIntensite(bool instant = false);// Permet de recuperer l'intensité du courant absorber par le moteur
 
+
 	//Contrôle autonome de la position
+	void updateTrueTargetPos();
 	//Contrôle haut niveau
 	void updateSpeedAndDirForTarget(); //Mets à jours les consignes de vitesse afin d'atteindre la position voulue pour le battant
 	

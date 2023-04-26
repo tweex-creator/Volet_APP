@@ -280,12 +280,57 @@ void Battant::priseOrigine_loop()
     }
 }
 
+
+//Gestion des obstacles
+void Battant::initStopSecurity()
+{
+    if (battant_state != -4) {
+        this->setSpeed(0);
+        Serial.println("OBSTACLE!!");
+        this->updatePontH();//On arrete tout de suite le volet pour gagner du temmps.
+        emmergency_stopper_var.state = 0;
+        this->setBattantState(-4);
+    }
+}
+
+void Battant::handleStopSecurity() {
+    switch (emmergency_stopper_var.state) {
+        case 0:
+            this->setDir(!dir);
+            this->setSpeed(255);
+            this->updatePontH();
+            emmergency_stopper_var.clock1 = millis();
+            emmergency_stopper_var.state = 1;
+            Serial.println("secur 1");
+            break;
+        case 1:
+            if (millis() - emmergency_stopper_var.clock1 > 2000) {
+                this->setDir(!dir);
+                this->setSpeed(0);
+                this->updatePontH();
+                emmergency_stopper_var.state = 2;
+                Serial.println("secur 2");
+
+            }
+            break;
+        case 2:
+
+            //Attente d'une prise d'orgine
+            break;
+
+    }
+
+}
+
 //loop
 void Battant::loop() {
     int battant_state_local = this->battant_state;
     getAndUpdateIntensite();
     switch (battant_state_local) {
-       case -3:
+        case -4:
+            this->handleStopSecurity();
+            break;
+        case -3:
 
             break;
         case -2: {
@@ -300,7 +345,6 @@ void Battant::loop() {
             if (config_done == 1) {
                 this->setBattantState(1);
             }
-
             break;
         }
         case 1: {
@@ -311,6 +355,10 @@ void Battant::loop() {
         default:
             this->updateSpeedAndDirForTarget();
             break;
+    }
+
+    if (overCurrentSecurityDetector() && battant_state_local != -4) {
+        initStopSecurity();
     }
 
 }
@@ -348,12 +396,16 @@ void Battant::config(configBattant battConf)
     this->inStopperOpen = 0;
     this->inStopperClose = 0;
     this->lastMesurePosition = 0;
-    this->setMaxAmp(50.0);
+    this->setMaxAmp(30.0);
     currentPos = 0;
 
     if (config_done < 2 && config_done != 1) {
         config_done = config_done + 2;
     }
+    for (int i = 0; i < N_MOYENNE_AMP; i++) {
+        moyenneAmp[i] = 0;
+    }
+    amp = 0;
 }
 void Battant::setAutreBattant(Battant* autreBattant_)
 {
@@ -399,7 +451,7 @@ float Battant::getTargetPosition()
 }
 float Battant::getRealTargetPosition()
 {
-    return 0.0f;
+    return true_targetPos;
 }
 
 float Battant::getCurrentPosition() {
@@ -435,7 +487,7 @@ float Battant::getCurrentPosition() {
     return this->currentPos;
 }
 
-char Battant::getState()
+int Battant::getState()
 {
     return this->battant_state;
 }
@@ -454,7 +506,15 @@ void Battant::stop()
 }
 bool Battant::setBattantState(int state_)
 {
+    if (battant_state == -4) {
+        if (state_ != -1) {
+            return false;
+        }
+    }
     battant_state = state_;
+    Serial.print("newState: ");
+    Serial.println(battant_state);
+
     return true;
 }
 void Battant::updatePontH()
@@ -462,10 +522,14 @@ void Battant::updatePontH()
     if (dir == 0) {
         inStopperOpen = false;
         analogWrite(pinFermeture, speed);
+        analogWrite(pinOuverture, 0);
+
     }
     else {
         inStopperClose = false;
         analogWrite(pinOuverture, speed);
+        analogWrite(pinFermeture, 0);
+
     }
 }
 
@@ -510,6 +574,16 @@ bool Battant::isInStopperOpen()
 
     return inStopperOpen;
 }
+bool Battant::overCurrentSecurityDetector()
+{
+    if (getAndUpdateIntensite() > maxAmp+20  || -1 * getAndUpdateIntensite() > maxAmp+20) {
+        if (this->speed != 0) {
+            return true;
+        }
+
+    }
+    return false;
+}
 float Battant::getAndUpdateIntensite(bool instant)
 {
     if (millis() - lastCurrentMesure > 100) {
@@ -532,9 +606,31 @@ float Battant::getAndUpdateIntensite(bool instant)
 }
 
 
+void Battant::updateTrueTargetPos()
+{
+
+    if (this->battantType == 1) {
+        if (this->getAutreBatantPos() < 15) {
+            true_targetPos = 0;
+        }
+        else {
+            true_targetPos = targetPos;
+        }
+    }
+    else {
+        if (this->targetPos <= 15 && this->getAutreBatantPos() != 0) {
+            true_targetPos = 16;
+        }
+        else {
+            true_targetPos = targetPos;
+        }
+    }
+}
+
 //Contrôle autonome de la position
 void Battant::updateSpeedAndDirForTarget() {
-    float trueTargetPos = this->getTargetPosition();
+    updateTrueTargetPos();
+    float trueTargetPos = this->getRealTargetPosition();
     /*if (battantType == 0) {//premier a ce fermer  securité antichevauchement
         if (this->getTargetPosition() < 10) {
             if (this->getAutreBatantPos() < 10) {
@@ -563,7 +659,7 @@ void Battant::updateSpeedAndDirForTarget() {
     }
     */
     if (trueTargetPos == 100) {
-        if (!this->isInStopperOpen()) {
+        if (!this->isInStopperOpen() || this->getCurrentPosition() < 100) {
             if (this->getCurrentPosition() > 100) {
                 currentPos = 100;
             }
@@ -576,7 +672,7 @@ void Battant::updateSpeedAndDirForTarget() {
             this->setSpeed(0); ;
         }
     }else if (trueTargetPos == 0) {
-        if (!this->isInStopperClose()) {
+        if (!this->isInStopperClose() || this->getCurrentPosition() > 0) {
             if (this->getCurrentPosition() < 0) {
                 currentPos = 0;
             }

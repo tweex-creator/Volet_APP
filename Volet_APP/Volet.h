@@ -1,7 +1,5 @@
 #pragma once
 #include "Battant.h"
-#include <FS.h>
-#include <LittleFS.h>
 
 class Volet
 {
@@ -22,6 +20,9 @@ public:
 	void setPosBG(float pos);
 	void setPosBD(float pos);
 
+	//Récupération des infos
+	float getPosBG();
+	float getPosBD();
 	//loop
 	void loop();
 

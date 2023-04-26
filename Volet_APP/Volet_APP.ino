@@ -7,9 +7,14 @@
 // the setup function runs once when you press reset or power the board
 
 
+
+#include <AsyncUDP.h>
 #include "Volet.h"
 #include "Capteurs.h"
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include "Mqtt_handler.h"
+#include "webServer.h"
+
 
 void setup() {
 	Serial.begin(115200);
@@ -44,6 +49,8 @@ void setup() {
 		//if you get here you have connected to the WiFi    
 		Serial.println("connected...yeey :)");
 	}
+	
+	
 	Serial.println("Starting...");
 }
 
@@ -64,39 +71,14 @@ void loop() {
 	//volet->calibrate();
 	volet->calibrate_manual(20196, 20502, 20196, 20196);
 
-	//volet.setPosBD(0.0);
-	//volet.setPosBG(0.0);
 	unsigned long perf = millis();
 	unsigned long perf2;
-	Capteurs capteurs(25, 26, 27);
+	Capteurs capteurs(25, 26, 27, 14);
+	const char* mqtt_server = "192.168.43.249";
+	Mqtt_handler mqtt(mqtt_server, volet, &capteurs);
 	while (true) {
-		if (millis() - perf > 1000) {
-			perf = millis();
-			Serial.print("Temp int: ");
-			Serial.println(capteurs.getTempInt());
-			Serial.print("Hum int: ");
-			Serial.println(capteurs.getHumInt());
-			Serial.print("Temp ext: ");
-			Serial.println(capteurs.getTempExt());
-			Serial.print("Hum ext: ");
-			Serial.println(capteurs.getHumExt());
-			Serial.print("Lux ext: ");
-			Serial.println(capteurs.getLuxExt());
-		}
-
-		//perf2 = millis() - perf;
-		//Serial.print("perf: ");
-		//Serial.println(perf2);
-		//perf = millis();
+		mqtt.loop();
 		volet->loop();
-		if (Serial.available()) {
-			float pos_serie = Serial.parseFloat();
-			if (pos_serie >= 0 && pos_serie <= 100) {
-				volet->setPosBD(pos_serie);
-				volet->setPosBG(pos_serie);
-
-			}
-		}
 	}
 
 }

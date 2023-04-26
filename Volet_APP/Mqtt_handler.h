@@ -1,11 +1,12 @@
 #pragma once
 #include <WiFi.h>
 #include <PubSubClient.h>
-
+#include "Volet.h"
+#include "Capteurs.h"
 class Mqtt_handler
 {
 public:
-	Mqtt_handler(const char* mqtt_server);
+	Mqtt_handler(const char* mqtt_server, Volet* volet, Capteurs* capteurs);
 	~Mqtt_handler();
 	void loop();
 	void callback(char* topic, byte* message, unsigned int length);
@@ -14,6 +15,10 @@ private:
 	char* id;
 	WiFiClient espClient;
 	PubSubClient client;
+
+	//reference
+	Volet* volet;
+	Capteurs* capteurs;
 
 	void reconnect();
 	unsigned long lastReconnectAttempt;

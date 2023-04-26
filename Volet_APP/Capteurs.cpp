@@ -1,13 +1,15 @@
 #include "Capteurs.h"
 
-Capteurs::Capteurs(const int pinTempHumInt, const int pinTempHumExt, const int pinLumExt):
+Capteurs::Capteurs(const int pinTempHumInt, const int pinTempHumExt, const int pinLumExt, const int pinMouv) :
 	temp_hum_int(pinTempHumInt, typeDeDHT),
 	temp_hum_ext(pinTempHumExt, typeDeDHT),
-	lux_ext(pinLumExt)
+	pinMouv(pinMouv),
+	lux_ext(pinLumExt, 13, 19)
 {
 	temp_hum_int.begin();
 	temp_hum_ext.begin();
-	//lux_ext.begin();
+	lux_ext.begin();
+	coolDownPresence = 5000;
 
 
 }
@@ -35,4 +37,24 @@ float Capteurs::getHumExt()
 float Capteurs::getLuxExt()
 {
 	return lux_ext.lightStrengthLux();
+}
+
+bool Capteurs::presenceDetected()
+{
+	if (digitalRead(pinMouv) == HIGH)
+	{
+		lastPresenceDetected = millis();
+		return true;
+	}
+	else
+	{
+		if (millis() - lastPresenceDetected > coolDownPresence)
+		{
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}
 }

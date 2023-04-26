@@ -34,25 +34,7 @@ void Volet::calibrate()
 
 bool Volet::load_calibration()
 {
-	File calibration_file = LittleFS.open(F("/calibration_data.txt"), "r");
-	unsigned long time_close_bd;
-	unsigned long time_open_bd;
-	unsigned long time_close_bg;
-	unsigned long time_open_bg;
-	if (calibration_file) {
-		time_close_bd = calibration_file.parseInt();
-		time_open_bd = calibration_file.parseInt();
-		time_close_bg = calibration_file.parseInt();
-		time_open_bg = calibration_file.parseInt();
-		calibrate_manual(time_close_bd, time_open_bd, time_close_bg, time_open_bd);
-
-	}
-	else {
-		Serial.println("failed to read calibration data");
-		return false;
-	}
-	return true;
-	calibration_file.close();
+	
 }
 
 void Volet::calibrate_manual(long time_close_bd, long time_open_bd, long time_close_bg, long time_open_bg)
@@ -120,8 +102,12 @@ void Volet::priseOrigine()
 {
 	if (this->setVoletState(-1)) {
 		this->origine_var.state = 10;
+		this->battantDroit.init_priseOrigine();
+		this->battantGauche.init_priseOrigine();
+
 	}
 }
+
 void Volet::priseOrigine_loop()
 {
 	switch (this->origine_var.state) {
@@ -131,8 +117,8 @@ void Volet::priseOrigine_loop()
 	case 10:
 		Serial.println("[VOLET] Start prise origine");
 		//On demande aux deux battants de se preparer pour une calibration
-		battantGauche.init_priseOrigine();
-		battantDroit.init_priseOrigine();
+		//battantGauche.init_priseOrigine();
+		//battantDroit.init_priseOrigine();
 		this->origine_var.state = 11;
 		break;
 	case 11:
@@ -189,12 +175,27 @@ void Volet::setPosBD(float pos)
 
 //loop
 
+float Volet::getPosBG()
+{
+	return this->battantGauche.getCurrentPosition();
+}
+
+float Volet::getPosBD()
+{
+	return this->battantDroit.getCurrentPosition();
+}
+
 void Volet::loop()
 {
 	int state_vol_debug = this->volet_state;
+	if (volet_state != -4 && (battantDroit.getState() == -4 || battantGauche.getState() == -4)) {
+		this->volet_state = -4;
+		this->battantDroit.initStopSecurity();
+		this->battantGauche.initStopSecurity();
+		Serial.println("Global obstacle");
+	}
 	switch (this->volet_state) {
 	case -4:
-
 		break;
 	case -3:
 
