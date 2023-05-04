@@ -17,8 +17,8 @@ private:
 	PubSubClient client;
 
 	//reference
-	Volet* volet;
-	Capteurs* capteurs;
+	Volet* volet_ptr;
+	Capteurs* capteurs_ptr;
 
 	void reconnect();
 	unsigned long lastReconnectAttempt;

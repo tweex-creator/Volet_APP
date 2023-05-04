@@ -12,7 +12,7 @@ void callback_ext(char* topic, byte* message, unsigned int length) {
 
 
 
-Mqtt_handler::Mqtt_handler(const char* mqtt_server, Volet* volet, Capteurs* capteurs):client(espClient), volet(volet), capteurs(capteurs)
+Mqtt_handler::Mqtt_handler(const char* mqtt_server, Volet* volet_ptr, Capteurs* capteurs_ptr):client(espClient), volet_ptr(volet_ptr), capteurs_ptr(capteurs_ptr)
 {
 	this->mqtt_server = mqtt_server;
 	Mqtt_ptr_callback = this;
@@ -101,7 +101,7 @@ void Mqtt_handler::callback(char* topic, byte* message, unsigned int length) {
     if (String(topic) == topic_check) {
         //get the float value
         int pos = messageTemp.toInt();
-        volet->setPosBG(pos);
+        volet_ptr->setPosBG(pos);
     }
 
     topic_check = "home/" + id + "/position/volet/set";
@@ -109,8 +109,8 @@ void Mqtt_handler::callback(char* topic, byte* message, unsigned int length) {
     if (String(topic) == topic_check) {
         //get the float value
         int pos = messageTemp.toInt();
-        volet->setPosBG(pos);
-        volet->setPosBD(pos);
+        volet_ptr->setPosBG(pos);
+        volet_ptr->setPosBD(pos);
 
     }
 
@@ -118,17 +118,17 @@ void Mqtt_handler::callback(char* topic, byte* message, unsigned int length) {
     if (String(topic) == topic_check) {
 		//get the float value
 		int pos = messageTemp.toInt();
-		volet->setPosBD(pos);
+		volet_ptr->setPosBD(pos);
 	}
 
     topic_check = "home/" + id + "/commande/calibrate";
     if (String(topic) == topic_check) {
-		volet->calibrate();
+		volet_ptr->calibrate();
 	}
 
     topic_check = "home/" + id + "/commande/origine";
     if (String(topic) == topic_check) {
-		volet->priseOrigine();
+		volet_ptr->priseOrigine();
 	}
 
 
@@ -139,26 +139,26 @@ void Mqtt_handler::sendRecap() {
     // Send recap
     String id(this->id);
     String topic = "home/" + id + "/position/battant_gauche";
-	client.publish(topic.c_str(), String(volet->getPosBG()).c_str());
+	client.publish(topic.c_str(), String(volet_ptr->getPosBG()).c_str());
 
     topic = "home/" + id + "/position/battant_droit";
-    client.publish(topic.c_str(), String(volet->getPosBD()).c_str());
+    client.publish(topic.c_str(), String(volet_ptr->getPosBD()).c_str());
 
     topic = "home/" + id + "/capteurs/temp/int";
-    client.publish(topic.c_str(), String(capteurs->getTempInt()).c_str());
+    client.publish(topic.c_str(), String(capteurs_ptr->getTempInt()).c_str());
 
     topic = "home/" + id + "/capteurs/hum/int";
-    client.publish(topic.c_str(), String(capteurs->getHumInt()).c_str());
+    client.publish(topic.c_str(), String(capteurs_ptr->getHumInt()).c_str());
 
     topic = "home/" + id + "/capteurs/temp/ext";
-    client.publish(topic.c_str(), String(capteurs->getTempExt()).c_str());
+    client.publish(topic.c_str(), String(capteurs_ptr->getTempExt()).c_str());
 
     topic = "home/" + id + "/capteurs/hum/ext";
-    client.publish(topic.c_str(), String(capteurs->getHumExt()).c_str());
+    client.publish(topic.c_str(), String(capteurs_ptr->getHumExt()).c_str());
 
     topic = "home/" + id + "/capteurs/lum/ext";
-    client.publish(topic.c_str(), String(capteurs->getLuxExt()).c_str());
+    client.publish(topic.c_str(), String(capteurs_ptr->getLuxExt()).c_str());
 
     topic = "home/" + id + "/capteurs/mouv/int";
-    client.publish(topic.c_str(), String(capteurs->presenceDetected()).c_str());
+    client.publish(topic.c_str(), String(capteurs_ptr->presenceDetected()).c_str());
 }

@@ -122,8 +122,8 @@ void setup() {
 
 
 void loop() {
-	Volet* volet = new Volet(0x44, 0x40);
-	link_volet = volet;
+	Volet* volet_ptr = new Volet(0x44, 0x40);
+	link_volet = volet_ptr;
 	configBattant battant_droit_conf;
 	configBattant battant_gauche_conf;
 	battant_droit_conf.battantType = 1;
@@ -134,18 +134,18 @@ void loop() {
 	battant_gauche_conf.pont_H_pinFermeture = 32;
 	battant_gauche_conf.pont_H_pinOuverture = 33;
 
-	volet->config(battant_gauche_conf, battant_droit_conf);
+	volet_ptr->config(battant_gauche_conf, battant_droit_conf);
 
 	//volet->calibrate();
-	volet->calibrate_manual(20196, 20502, 20196, 20196);
+	volet_ptr->calibrate_manual(20196, 20502, 20196, 20196);
 
-	Capteurs capteurs(25, 26, 27, 14);
-	link_capteurs = &capteurs;
-	const char* mqtt_server = "192.168.43.249";
-	Mqtt_handler mqtt(mqtt_server, volet, &capteurs);
+	Capteurs capteurs_ptr(25, 26, 27, 14);
+	link_capteurs = &capteurs_ptr;
+	const char* mqtt_server = "192.168.137.46";
+	Mqtt_handler mqtt(mqtt_server, volet_ptr, &capteurs_ptr);
 	while (true) {
 		mqtt.loop();
-		volet->loop();
+		volet_ptr->loop();
 	}
 
 }

@@ -545,6 +545,8 @@ bool Battant::isInStopperClose()
         if (millis() - this->firstTimeOverTorqueClose > this->maxTimeOverTorque) {
             inStopperClose = true;
             currentPos = 0;
+            if (this->battantType == 1) Serial.println("setTo 0: 3");
+
         }
     }
     else {
@@ -675,24 +677,26 @@ void Battant::updateSpeedAndDirForTarget() {
         if (!this->isInStopperClose() || this->getCurrentPosition() > 0) {
             if (this->getCurrentPosition() < 0) {
                 currentPos = 0;
+                if (this->battantType == 1) Serial.println("setTo 0: 2");
+
             }
             this->setDir(0);
             this->setSpeed(255);
         }
         else {
+            if (this->battantType == 1) Serial.println("setTo 0: 1");
             currentPos = 0;
             this->setDir(0);
             this->setSpeed(0);
         }
     }  
-    else if (trueTargetPos > this->getCurrentPosition()+1) {
+    else if (trueTargetPos > this->getCurrentPosition()+0.1) {
        
            this->setDir(1);
            this->setSpeed(255);
 
     }
-    else if (trueTargetPos < this->getCurrentPosition() - 1) {
-
+    else if (trueTargetPos < this->getCurrentPosition() - 0.1) {
 
         this->setDir(0);
         this->setSpeed(255);

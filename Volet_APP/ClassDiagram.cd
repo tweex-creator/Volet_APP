@@ -1,0 +1,192 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="FullSignature">
+  <Class Name="Battant">
+    <Position X="6" Y="0.5" Width="3.75" />
+    <Members>
+      <Field Name="amp" Hidden="true" />
+      <Field Name="ampVolet" Hidden="true" />
+      <Method Name="Battant" Hidden="true" />
+      <Method Name="calibrate_loop" Hidden="true" />
+      <Method Name="calibrateNextStep" Hidden="true" />
+      <Method Name="calibration_inProgress" Hidden="true" />
+      <Method Name="calibration_Ready" Hidden="true" />
+      <Field Name="calibration_var" Hidden="true" />
+      <Method Name="cancel_calibration" Hidden="true" />
+      <Method Name="config" Hidden="true" />
+      <Field Name="config_done" Hidden="true" />
+      <Field Name="emmergency_stopper_var" Hidden="true" />
+      <Field Name="firstTimeOverTorqueClose" Hidden="true" />
+      <Field Name="firstTimeOverTorqueOpen" Hidden="true" />
+      <Method Name="get_time_close" Hidden="true" />
+      <Method Name="get_time_open" Hidden="true" />
+      <Method Name="getAndUpdateIntensite" Hidden="true" />
+      <Method Name="getAutreBatantPos" Hidden="true" />
+      <Method Name="getRealTargetPosition" Hidden="true" />
+      <Method Name="getState" Hidden="true" />
+      <Method Name="getTargetPosition" Hidden="true" />
+      <Method Name="handleStopSecurity" Hidden="true" />
+      <Method Name="initStopSecurity" Hidden="true" />
+      <Field Name="inStopperClose" Hidden="true" />
+      <Field Name="inStopperOpen" Hidden="true" />
+      <Field Name="maxTimeOverTorque" Hidden="true" />
+      <Field Name="origine_var" Hidden="true" />
+      <Method Name="overCurrentSecurityDetector" Hidden="true" />
+      <Method Name="priseOrigine_inProgress" Hidden="true" />
+      <Method Name="priseOrigine_loop" Hidden="true" />
+      <Method Name="priseOrigine_Ready" Hidden="true" />
+      <Method Name="priseOrigineNextStep" Hidden="true" />
+      <Method Name="set_time_close" Hidden="true" />
+      <Method Name="set_time_open" Hidden="true" />
+      <Method Name="setAutreBattant" Hidden="true" />
+      <Method Name="setBattantState" Hidden="true" />
+      <Method Name="setDir" Hidden="true" />
+      <Method Name="setMaxAmp" Hidden="true" />
+      <Method Name="setSpeed" Hidden="true" />
+      <Field Name="true_targetPos" Hidden="true" />
+      <Method Name="updatePontH" Hidden="true" />
+      <Method Name="updateSpeedAndDirForTarget" Hidden="true" />
+      <Method Name="updateTrueTargetPos" Hidden="true" />
+    </Members>
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
+    <NestedTypes>
+      <Struct Name="Battant::calibration_var_set" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Battant.h</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+      <Struct Name="Battant::origine_var_set" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Battant.h</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+      <Struct Name="Battant::emmergency_stopper_var_set" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>Battant.h</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+    </NestedTypes>
+    <AssociationLine Name="autreBattant" Type="Battant" ManuallyRouted="true">
+      <Path>
+        <Point X="7.317" Y="3.468" />
+        <Point X="7.317" Y="3.718" />
+        <Point X="8.459" Y="3.718" />
+        <Point X="8.459" Y="3.468" />
+      </Path>
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="0.092" Y="0.399" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>YQEDCQACJqJACNAjKBAAcAKgEYA3I8BAkQQQASEFwAU=</HashCode>
+      <FileName>Battant.h</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="autreBattant" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="Capteurs">
+    <Position X="5.75" Y="4.25" Width="2" />
+    <Members>
+      <Method Name="Capteurs" Hidden="true" />
+    </Members>
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
+    <AssociationLine Name="temp_hum_int" Type="DHT">
+      <MemberNameLabel ManuallyPlaced="true" ManuallySized="true">
+        <Position X="-0.635" Y="0.349" Height="0.182" Width="1.195" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <AssociationLine Name="temp_hum_ext" Type="DHT">
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="-0.505" Y="-0.689" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>AECBBAAAAARAAAQAAAABAAAAIAAAAAAACAAAAAgAUAA=</HashCode>
+      <FileName>Capteurs.h</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="temp_hum_int" />
+      <Field Name="temp_hum_ext" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="Mqtt_handler">
+    <Position X="0.5" Y="4.25" Width="4.75" />
+    <Members>
+      <Method Name="callback" Hidden="true" />
+      <Method Name="Mqtt_handler" Hidden="true" />
+    </Members>
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
+    <AssociationLine Name="capteurs" Type="Capteurs">
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="1.011" Y="0.055" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>AABBAAQAAgAALAAAAAAAAAIAAAQABAAAEAAABAAAEgQ=</HashCode>
+      <FileName>Mqtt_handler.h</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="volet" />
+      <Field Name="capteurs" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="Volet">
+    <Position X="0.5" Y="0.5" Width="4" />
+    <Members>
+      <Method Name="calibration_loop" Hidden="true" />
+      <Field Name="calibration_var" Hidden="true" />
+      <Method Name="config" Hidden="true" />
+      <Method Name="getRealTargetBD" Hidden="true" />
+      <Method Name="getRealTargetBG" Hidden="true" />
+      <Method Name="getTargetBD" Hidden="true" />
+      <Method Name="getTargetBG" Hidden="true" />
+      <Method Name="load_calibration" Hidden="true" />
+      <Field Name="origine_var" Hidden="true" />
+      <Method Name="priseOrigine_loop" Hidden="true" />
+      <Method Name="setVoletState" Hidden="true" />
+      <Method Name="Volet" Hidden="true" />
+    </Members>
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
+    <NestedTypes>
+      <Struct Name="Volet::Calibration_var_set">
+        <TypeIdentifier>
+          <NewMemberFileName>Volet.h</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+      <Struct Name="Volet::Origine_var_set">
+        <TypeIdentifier>
+          <NewMemberFileName>Volet.h</NewMemberFileName>
+        </TypeIdentifier>
+      </Struct>
+    </NestedTypes>
+    <AssociationLine Name="battantGauche" Type="Battant">
+      <MemberNameLabel ManuallyPlaced="true">
+        <Position X="0.119" Y="-0.291" />
+      </MemberNameLabel>
+    </AssociationLine>
+    <TypeIdentifier>
+      <HashCode>AAESQAAAAEhACRAAAAAAABAAAAAQAAgQQAABCKQEAAE=</HashCode>
+      <FileName>Volet.h</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="battantDroit" />
+      <Field Name="battantGauche" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="DHT" Collapsed="true">
+    <Position X="8.5" Y="4.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>QAAwAAAQAAAAAAwgBSAAAAAQAAIAAAACCAASAAgAAEA=</HashCode>
+      <FileName>C:\Users\tweex\OneDrive - Université Savoie Mont Blanc\Documents\Arduino\libraries\DHT_sensor_library\DHT.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
